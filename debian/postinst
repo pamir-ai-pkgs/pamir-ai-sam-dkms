@@ -42,16 +42,18 @@ case "$1" in
             
             # Check if device-tree-compiler is available
             if command -v dtc &> /dev/null; then
-                # Create overlay directory if it doesn't exist
-                mkdir -p "$(dirname "${OVERLAY_DEST}")"
-                
-                # Compile the overlay with include paths
-                KERNEL_HEADERS="/lib/modules/$(uname -r)/build"
-                INCLUDE_PATHS="-i ${KERNEL_HEADERS}/include -i ${KERNEL_HEADERS}/arch/arm64/boot/dts/overlays"
-                
-                if dtc -@ -I dts -O dtb ${INCLUDE_PATHS} -o "${OVERLAY_DEST}" "${OVERLAY_SOURCE}"; then
-                    echo "Device tree overlay compiled and installed to ${OVERLAY_DEST}"
+                # Create overlay directory if it doesn't exist (only if parent exists)
+                if [ -d "/boot/firmware" ]; then
+                    mkdir -p "$(dirname "${OVERLAY_DEST}")"
                 else
+                    echo "Warning: /boot/firmware not found, skipping overlay compilation"
+                    OVERLAY_SOURCE=""
+                fi
+                
+                # Compile the overlay (only if source still valid)
+                if [ -n "${OVERLAY_SOURCE}" ] && dtc -@ -I dts -O dtb -o "${OVERLAY_DEST}" "${OVERLAY_SOURCE}"; then
+                    echo "Device tree overlay compiled and installed to ${OVERLAY_DEST}"
+                elif [ -n "${OVERLAY_SOURCE}" ]; then
                     echo "Warning: Failed to compile device tree overlay"
                 fi
             else

@@ -1,0 +1,4 @@
+# Files and directories that should not be installed by the package
+boot/
+boot/firmware/
+boot/firmware/overlays/
