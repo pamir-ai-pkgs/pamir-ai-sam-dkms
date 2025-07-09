@@ -138,7 +138,7 @@ build_package() {
     
     # Build the package
     print_info "Running dpkg-buildpackage..."
-    if dpkg-buildpackage -us -uc -b; then
+    if dpkg-buildpackage -us -uc -b -aarm64; then
         print_success "Package built successfully"
     else
         print_error "Package build failed"
