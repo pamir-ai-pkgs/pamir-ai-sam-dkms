@@ -1,0 +1,110 @@
+#!/bin/bash
+
+set -e
+
+PACKAGE_NAME="pamir-ai-sam"
+PACKAGE_VERSION="1.0.0"
+DKMS_SOURCE_DIR="/usr/src/${PACKAGE_NAME}-${PACKAGE_VERSION}"
+OVERLAY_SOURCE="${DKMS_SOURCE_DIR}/pamir-ai-sam-overlay.dts"
+OVERLAY_DEST="/boot/firmware/overlays/pamir-ai-sam.dtbo"
+
+case "$1" in
+    configure)
+        echo "Configuring pamir-ai-sam-dkms..."
+        
+        # Add to DKMS
+        if [ -f "${DKMS_SOURCE_DIR}/dkms.conf" ]; then
+            echo "Adding ${PACKAGE_NAME} to DKMS..."
+            dkms add -m "${PACKAGE_NAME}" -v "${PACKAGE_VERSION}" || true
+            
+            # Build the module
+            echo "Building ${PACKAGE_NAME} DKMS module..."
+            if dkms build -m "${PACKAGE_NAME}" -v "${PACKAGE_VERSION}"; then
+                echo "Successfully built ${PACKAGE_NAME} modules"
+                
+                # Install the module
+                echo "Installing ${PACKAGE_NAME} DKMS module..."
+                if dkms install -m "${PACKAGE_NAME}" -v "${PACKAGE_VERSION}"; then
+                    echo "Successfully installed ${PACKAGE_NAME} modules"
+                else
+                    echo "Warning: Failed to install ${PACKAGE_NAME} modules"
+                fi
+            else
+                echo "Warning: Failed to build ${PACKAGE_NAME} modules"
+            fi
+        else
+            echo "Error: DKMS configuration file not found at ${DKMS_SOURCE_DIR}/dkms.conf"
+        fi
+        
+        # Compile and install device tree overlay
+        if [ -f "${OVERLAY_SOURCE}" ]; then
+            echo "Compiling device tree overlay..."
+            
+            # Check if device-tree-compiler is available
+            if command -v dtc &> /dev/null; then
+                # Create overlay directory if it doesn't exist
+                mkdir -p "$(dirname "${OVERLAY_DEST}")"
+                
+                # Compile the overlay with include paths
+                KERNEL_HEADERS="/lib/modules/$(uname -r)/build"
+                INCLUDE_PATHS="-i ${KERNEL_HEADERS}/include -i ${KERNEL_HEADERS}/arch/arm64/boot/dts/overlays"
+                
+                if dtc -@ -I dts -O dtb ${INCLUDE_PATHS} -o "${OVERLAY_DEST}" "${OVERLAY_SOURCE}"; then
+                    echo "Device tree overlay compiled and installed to ${OVERLAY_DEST}"
+                else
+                    echo "Warning: Failed to compile device tree overlay"
+                fi
+            else
+                echo "Warning: device-tree-compiler (dtc) not found, skipping overlay compilation"
+            fi
+        else
+            echo "Warning: Device tree overlay source not found"
+        fi
+        
+        # Update module dependencies
+        echo "Updating module dependencies..."
+        depmod -a || true
+        
+        # Auto-configure device tree overlay in config.txt
+        CONFIG_FILE="/boot/firmware/config.txt"
+        OVERLAY_LINE="dtoverlay=pamir-ai-sam"
+        
+        if [ -f "${CONFIG_FILE}" ]; then
+            echo "Configuring device tree overlay in ${CONFIG_FILE}..."
+            
+            # Check if overlay is already configured
+            if ! grep -q "^${OVERLAY_LINE}" "${CONFIG_FILE}"; then
+                # Add a comment and the overlay line
+                echo "" >> "${CONFIG_FILE}"
+                echo "# Pamir AI SAM - Added by pamir-ai-sam-dkms package" >> "${CONFIG_FILE}"
+                echo "${OVERLAY_LINE}" >> "${CONFIG_FILE}"
+                echo "Device tree overlay configured in ${CONFIG_FILE}"
+            else
+                echo "Device tree overlay already configured in ${CONFIG_FILE}"
+            fi
+        else
+            echo "Warning: ${CONFIG_FILE} not found, overlay not auto-configured"
+        fi
+        
+        echo ""
+        echo "Pamir AI SAM DKMS installation completed!"
+        echo ""
+        echo "The sam has been automatically configured in ${CONFIG_FILE}"
+        echo "Please reboot your system to activate the sam."
+        echo ""
+        echo "Or to load modules immediately without reboot:"
+        echo "  sudo modprobe pamir-ai-sam"
+        ;;
+        
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+        
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

@@ -1,0 +1,64 @@
+#!/bin/bash
+
+set -e
+
+PACKAGE_NAME="pamir-ai-sam"
+PACKAGE_VERSION="1.0.0"
+DKMS_SOURCE_DIR="/usr/src/${PACKAGE_NAME}-${PACKAGE_VERSION}"
+OVERLAY_DEST="/boot/firmware/overlays/pamir-ai-sam.dtbo"
+
+case "$1" in
+    remove)
+        echo "Cleaning up pamir-ai-sam-dkms..."
+        
+        # Remove device tree overlay
+        if [ -f "${OVERLAY_DEST}" ]; then
+            echo "Removing device tree overlay..."
+            rm -f "${OVERLAY_DEST}"
+        fi
+        
+        # Update module dependencies
+        echo "Updating module dependencies..."
+        depmod -a || true
+        
+        echo "Pamir AI SAM DKMS removal completed"
+        ;;
+        
+    purge)
+        echo "Purging pamir-ai-sam-dkms..."
+        
+        # Remove device tree overlay file only (not the directory)
+        if [ -f "${OVERLAY_DEST}" ]; then
+            echo "Removing device tree overlay..."
+            rm -f "${OVERLAY_DEST}"
+        fi
+        
+        # Remove DKMS source directory (if it still exists)
+        if [ -d "${DKMS_SOURCE_DIR}" ]; then
+            echo "Removing DKMS source directory..."
+            rm -rf "${DKMS_SOURCE_DIR}"
+        fi
+        
+        # Update module dependencies
+        echo "Updating module dependencies..."
+        depmod -a || true
+        
+        echo "Pamir AI SAM DKMS purge completed"
+        
+        echo ""
+        echo "Note: The device tree overlay configuration has been automatically"
+        echo "removed from /boot/firmware/config.txt during package removal."
+        ;;
+        
+    upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+        ;;
+        
+    *)
+        echo "postrm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

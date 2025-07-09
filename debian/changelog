@@ -1,0 +1,6 @@
+pamir-ai-sam-dkms (1.0.0-1) unstable; urgency=medium
+
+  * Initial release of Pamir AI SAM DKMS modules
+  * Support for Raspberry Pi CM5 and Distiller devices
+
+ -- Pamir AI <support@pamir.ai>  $(date -R)

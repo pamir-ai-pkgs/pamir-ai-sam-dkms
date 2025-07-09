@@ -1,0 +1,24 @@
+Source: pamir-ai-sam-dkms
+Section: kernel
+Priority: optional
+Maintainer: PamirAI Incorporated <founders@pamir.ai>
+Standards-Version: 4.6.0
+Build-Depends: debhelper-compat (= 13),
+               dkms,
+               device-tree-compiler
+Homepage: https://github.com/pamir-ai/distiller-cm5-kernel
+Vcs-Git: https://github.com/pamir-ai/distiller-cm5-kernel.git
+Vcs-Browser: https://github.com/pamir-ai/distiller-cm5-kernel
+
+Package: pamir-ai-sam-dkms
+Architecture: all
+Depends: ${misc:Depends},
+         dkms,
+         device-tree-compiler,
+         linux-headers-generic | linux-headers-rpi
+Recommends:
+Suggests:
+Description: Pamir AI SAM DKMS kernel modules
+ This package provides DKMS (Dynamic Kernel Module Support) modules
+ for the Pamir AI SAM on Raspberry Pi CM5 and Distiller
+ devices.

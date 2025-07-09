@@ -1,0 +1,34 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	# No configuration needed for DKMS modules
+
+override_dh_auto_build:
+	# DKMS modules are built at install time
+
+override_dh_auto_test:
+	# No tests to run
+
+override_dh_auto_install:
+	# Install DKMS source files
+	install -d debian/pamir-ai-sam-dkms/usr/src/pamir-ai-sam-1.0.0
+	install -m 644 *.c debian/pamir-ai-sam-dkms/usr/src/pamir-ai-sam-1.0.0/
+	install -m 644 Makefile debian/pamir-ai-sam-dkms/usr/src/pamir-ai-sam-1.0.0/
+	install -m 644 dkms.conf debian/pamir-ai-sam-dkms/usr/src/pamir-ai-sam-1.0.0/
+	install -m 644 *.dts debian/pamir-ai-sam-dkms/usr/src/pamir-ai-sam-1.0.0/
+	
+	# Note: Device tree overlay directory should already exist on the system
+	# We compile and install the overlay at runtime in postinst
+	
+	# Install documentation
+	install -d debian/pamir-ai-sam-dkms/usr/share/doc/pamir-ai-sam-dkms
+	install -m 644 README.md debian/pamir-ai-sam-dkms/usr/share/doc/pamir-ai-sam-dkms/
+
+override_dh_installdeb:
+	dh_installdeb
+	# Fix the changelog date
+	sed -i "s/\$$(date -R)/$$(date -R)/" debian/pamir-ai-sam-dkms/usr/share/doc/pamir-ai-sam-dkms/changelog.Debian.gz || true
+

@@ -1,0 +1,59 @@
+#!/bin/bash
+
+set -e
+
+PACKAGE_NAME="pamir-ai-sam"
+PACKAGE_VERSION="1.0.0"
+
+case "$1" in
+    remove|upgrade|deconfigure)
+        echo "Removing pamir-ai-sam-dkms..."
+        
+        # Unload modules if they are loaded
+        echo "Unloading kernel module..."
+        if lsmod | grep -q "^pamir-ai-sam"; then
+            echo "Unloading pamir-ai-sam..."
+            rmmod "pamir-ai-sam" || echo "Warning: Failed to unload pamir-ai-sam"
+        fi
+        
+        # Remove device tree overlay configuration from config.txt
+        CONFIG_FILE="/boot/firmware/config.txt"
+        OVERLAY_LINE="dtoverlay=pamir-ai-sam"
+        COMMENT_LINE="# Pamir AI SAM - Added by pamir-ai-sam-dkms package"
+        
+        if [ -f "${CONFIG_FILE}" ]; then
+            echo "Removing device tree overlay configuration from ${CONFIG_FILE}..."
+            
+            # Create a temporary file without the overlay lines
+            TEMP_FILE=$(mktemp)
+            
+            # Remove the overlay line and the comment line
+            grep -v "^${OVERLAY_LINE}" "${CONFIG_FILE}" | grep -v "^${COMMENT_LINE}" > "${TEMP_FILE}"
+            
+            # Replace the original file
+            mv "${TEMP_FILE}" "${CONFIG_FILE}"
+            
+            echo "Device tree overlay configuration removed from ${CONFIG_FILE}"
+        else
+            echo "Warning: ${CONFIG_FILE} not found, skipping config removal"
+        fi
+        
+        # Remove from DKMS
+        if dkms status -m "${PACKAGE_NAME}" -v "${PACKAGE_VERSION}" | grep -q "${PACKAGE_NAME}"; then
+            echo "Removing ${PACKAGE_NAME} from DKMS..."
+            dkms remove -m "${PACKAGE_NAME}" -v "${PACKAGE_VERSION}" --all || true
+        fi
+        ;;
+        
+    failed-upgrade)
+        ;;
+        
+    *)
+        echo "prerm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0
