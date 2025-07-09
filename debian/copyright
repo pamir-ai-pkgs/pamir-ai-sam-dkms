@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: pamir-ai-sam-dkms
-Upstream-Contact: Pamir AI <support@pamir.ai>
+Upstream-Contact: PamirAI Incorporated <founders@pamir.ai>
 Source: https://github.com/pamir-ai/distiller-cm5-kernel
 
 Files: *

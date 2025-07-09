@@ -15,10 +15,10 @@ Architecture: all
 Depends: ${misc:Depends},
          dkms,
          device-tree-compiler,
-         linux-headers-generic | linux-headers-rpi
+         linux-headers-rpi-2712 | linux-headers-generic,
 Recommends:
 Suggests:
-Description: Pamir AI SAM DKMS kernel modules
+Description: PamirAI Incorporated SAM DKMS kernel modules
  This package provides DKMS (Dynamic Kernel Module Support) modules
- for the Pamir AI SAM on Raspberry Pi CM5 and Distiller
+ for the PamirAI Incorporated SAM on Raspberry Pi CM5 and Distiller
  devices.
