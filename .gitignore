@@ -1,2 +1,25 @@
 # Claude code files
 CLAUDE.md
+
+# Debian build outputs
+build/
+*.deb
+*.changes
+*.buildinfo
+*.dsc
+*.tar.*
+*.upload
+
+# DKMS build artifacts
+*.o
+*.ko
+*.mod
+*.mod.c
+*.symvers
+*.order
+.tmp_versions/
+modules.order
+Module.symvers
+
+# Device tree compiled overlays
+*.dtbo
