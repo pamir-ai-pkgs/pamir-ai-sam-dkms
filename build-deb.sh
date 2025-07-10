@@ -10,7 +10,7 @@ PACKAGE_NAME="pamir-ai-sam-dkms"
 PACKAGE_VERSION="1.0.0"
 DEBIAN_REVISION="1"
 FULL_VERSION="${PACKAGE_VERSION}-${DEBIAN_REVISION}"
-BUILD_DIR="build"
+BUILD_DIR="dist"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Colors for output
@@ -138,7 +138,7 @@ build_package() {
     
     # Build the package
     print_info "Running dpkg-buildpackage..."
-    if dpkg-buildpackage -us -uc -b -aarm64; then
+    if CC="aarch64-linux-gnu-gcc" dpkg-buildpackage -us -uc -b -aarm64; then
         print_success "Package built successfully"
     else
         print_error "Package build failed"

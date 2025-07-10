@@ -3,6 +3,7 @@ CLAUDE.md
 
 # Debian build outputs
 build/
+dist/
 *.deb
 *.changes
 *.buildinfo
