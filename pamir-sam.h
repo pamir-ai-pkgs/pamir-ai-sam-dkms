@@ -18,10 +18,13 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/notifier.h>
 #include <linux/of.h>
+#include <linux/reboot.h>
 #include <linux/serdev.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/sysfs.h>
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
 
@@ -30,6 +33,52 @@
 #define RX_BUF_SIZE 64
 #define TX_BUF_SIZE 256
 #define DEBUG_QUEUE_SIZE 32
+
+/* Debug configuration */
+#define DEBUG_UART_ENABLED 1  /* Enable detailed UART debugging */
+
+/* Debug macros for UART operations */
+#if DEBUG_UART_ENABLED
+#define debug_uart_print(dev, fmt, args...) \
+	dev_info(dev, "[UART] " fmt, ##args)
+#define debug_uart_packet(dev, packet, direction) \
+	do { \
+		if (packet) { \
+			dev_info(dev, "[UART-%s] [%02X %02X %02X %02X] len=4", \
+				direction, \
+				((uint8_t*)packet)[0], ((uint8_t*)packet)[1], \
+				((uint8_t*)packet)[2], ((uint8_t*)packet)[3]); \
+		} \
+	} while (0)
+#define debug_uart_raw(dev, data, len, direction) \
+	do { \
+		if (data && len > 0) { \
+			char hex_str[256]; \
+			int i, offset = 0; \
+			for (i = 0; i < len && offset < sizeof(hex_str) - 3; i++) { \
+				offset += snprintf(hex_str + offset, sizeof(hex_str) - offset, \
+					"%02X ", ((uint8_t*)data)[i]); \
+			} \
+			hex_str[offset] = '\0'; \
+			dev_info(dev, "[UART-RAW-%s] [%s] len=%zu", direction, hex_str, len); \
+		} \
+	} while (0)
+#else
+#define debug_uart_print(dev, fmt, args...) do { } while (0)
+#define debug_uart_packet(dev, packet, direction) do { } while (0)
+#define debug_uart_raw(dev, data, len, direction) do { } while (0)
+#endif
+
+/* SAM Driver Versioning - Semantic Versioning */
+#define PAMIR_SAM_VERSION_MAJOR 1
+#define PAMIR_SAM_VERSION_MINOR 0
+#define PAMIR_SAM_VERSION_PATCH 0
+
+/* Error recovery constants */
+#define MAX_RECOVERY_ATTEMPTS 3
+#define RECOVERY_BACKOFF_MS 100
+#define POWER_METRICS_TIMEOUT_MS 5000
+#define BOOT_NOTIFICATION_RETRY_MS 1000
 
 /* Protocol definitions */
 #define PACKET_SIZE 4  /* Type+Flags (1B) + Data (2B) + Checksum (1B) */
@@ -63,11 +112,16 @@
 #define LED_ID_MASK       0x03
 
 /* Power management commands */
-#define POWER_CMD_QUERY    0x00
-#define POWER_CMD_SET      0x10
-#define POWER_CMD_SLEEP    0x20
-#define POWER_CMD_SHUTDOWN 0x30
-#define POWER_CMD_MASK     0x30
+#define POWER_CMD_QUERY           0x00
+#define POWER_CMD_SET             0x10
+#define POWER_CMD_SLEEP           0x20
+#define POWER_CMD_SHUTDOWN        0x30
+#define POWER_CMD_CURRENT         0x40
+#define POWER_CMD_BATTERY         0x50
+#define POWER_CMD_TEMP            0x60
+#define POWER_CMD_VOLTAGE         0x70
+#define POWER_CMD_REQUEST_METRICS 0x80
+#define POWER_CMD_MASK            0xF0
 
 /* Debug text flags */
 #define DEBUG_FIRST_CHUNK  0x10
@@ -112,10 +166,31 @@ struct debug_code_entry {
 };
 
 /**
+ * struct sam_power_metrics - Power metrics data
+ * @current_ma: Current draw in milliamps
+ * @battery_percent: Battery charge percentage (0-100)
+ * @temperature_dc: Temperature in deci-celsius (0.1°C units)
+ * @voltage_mv: Voltage in millivolts
+ * @last_update: Timestamp of last successful update
+ * @metrics_valid: Whether metrics are valid/fresh
+ *
+ * Power metrics received from RP2040 microcontroller.
+ */
+struct sam_power_metrics {
+	uint16_t current_ma;
+	uint16_t battery_percent;
+	int16_t temperature_dc;  /* Can be negative */
+	uint16_t voltage_mv;
+	unsigned long last_update;
+	bool metrics_valid;
+};
+
+/**
  * struct sam_protocol_config - configuration for SAM protocol
  * @debug_level: Current debug level (0-3)
  * @ack_required: Whether commands require acknowledgment
  * @recovery_timeout_ms: Timeout for protocol recovery
+ * @power_poll_interval_ms: Interval for power metrics polling (0 = disabled)
  *
  * This struct holds configurable parameters for the SAM protocol driver
  * that can be set through device tree properties.
@@ -124,6 +199,7 @@ struct sam_protocol_config {
 	unsigned int debug_level;
 	bool ack_required;
 	unsigned int recovery_timeout_ms;
+	unsigned int power_poll_interval_ms;
 };
 
 /**
@@ -145,6 +221,13 @@ struct sam_protocol_config {
  * @packet_stats: Statistics for received/processed packets
  * @rx_state: Current state of packet processing state machine
  * @work_queue: Workqueue for deferred processing
+ * @power_metrics: Current power metrics data
+ * @power_metrics_mutex: Mutex for power metrics access
+ * @power_poll_work: Delayed work for power metrics polling
+ * @reboot_notifier: Reboot notifier for shutdown notification
+ * @boot_notification_sent: Whether boot notification was sent successfully
+ * @recovery_in_progress: Whether protocol recovery is in progress
+ * @recovery_attempts: Number of consecutive recovery attempts
  *
  * This struct holds the runtime state of the SAM protocol driver.
  */
@@ -172,6 +255,17 @@ struct sam_protocol_data {
 	uint64_t packet_stats[8];  /* Stats per message type */
 	int rx_state;
 	struct workqueue_struct *work_queue;
+
+	/* Power management */
+	struct sam_power_metrics power_metrics;
+	struct mutex power_metrics_mutex;
+	struct delayed_work power_poll_work;
+	struct notifier_block reboot_notifier;
+	bool boot_notification_sent;
+	
+	/* Error recovery */
+	bool recovery_in_progress;
+	int recovery_attempts;
 };
 
 /* Function declarations */
@@ -186,6 +280,23 @@ int send_led_command(struct sam_protocol_data *priv, uint8_t mode,
 		     uint8_t r, uint8_t g, uint8_t b, uint8_t value);
 int send_system_command(struct sam_protocol_data *priv, uint8_t action,
 			uint8_t command, uint8_t subcommand);
+
+/* Power management functions */
+int send_boot_notification(struct sam_protocol_data *priv);
+int send_power_metrics_request(struct sam_protocol_data *priv);
+void power_poll_work_handler(struct work_struct *work);
+int sam_reboot_notifier_call(struct notifier_block *nb, unsigned long action, void *data);
+
+/* Error recovery functions */
+void sam_protocol_recovery(struct sam_protocol_data *priv);
+void sam_protocol_flush_rx_buffer(struct sam_protocol_data *priv);
+
+/* Sysfs interface functions */
+int setup_power_metrics_sysfs(struct sam_protocol_data *priv);
+void cleanup_power_metrics_sysfs(struct sam_protocol_data *priv);
+
+/* LED control functions */
+void sam_led_brightness_set(struct led_classdev *led_cdev, enum led_brightness brightness);
 
 /* Message handlers */
 void process_button_packet(struct sam_protocol_data *priv,
@@ -211,5 +322,6 @@ void cleanup_char_device(struct sam_protocol_data *priv);
 
 /* Exported globals */
 extern struct led_classdev *pamir_led;
+extern struct sam_protocol_data *g_sam_protocol_data;
 
 #endif /* _PAMIR_SAM_H */ 

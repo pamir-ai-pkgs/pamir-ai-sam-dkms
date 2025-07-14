@@ -46,3 +46,49 @@ void process_led_packet(struct sam_protocol_data *priv,
 
 	/* Forward LED status to user space via a sysfs attribute if needed */
 }
+
+/**
+ * sam_led_brightness_set() - Set LED brightness from host
+ * @led_cdev: LED class device
+ * @brightness: Brightness value (0-255)
+ *
+ * Convert brightness to RGB LED command and send to RP2040.
+ * Uses white color (equal R,G,B) scaled by brightness.
+ */
+void sam_led_brightness_set(struct led_classdev *led_cdev, enum led_brightness brightness)
+{
+	struct sam_protocol_data *priv = g_sam_protocol_data;
+	uint8_t scaled_brightness;
+	int ret;
+
+	if (!led_cdev) {
+		pr_err("pamir-sam: LED brightness_set: invalid LED device\n");
+		return;
+	}
+
+	/* Verify this is our LED */
+	if (strcmp(led_cdev->name, "pamir:status") != 0) {
+		pr_warn("pamir-sam: LED brightness_set: unknown LED %s\n", led_cdev->name);
+		return;
+	}
+
+	/* Check if driver is available */
+	if (!priv || !priv->serdev) {
+		pr_warn("pamir-sam: LED brightness_set: driver not available\n");
+		return;
+	}
+
+	/* Convert brightness (0-255) to 4-bit value (0-15) */
+	scaled_brightness = (brightness * 15) / 255;
+
+	/* Use white color (equal R,G,B components) for brightness control */
+	ret = send_led_command(priv, LED_MODE_STATIC, scaled_brightness, 
+	                       scaled_brightness, scaled_brightness, 0);
+	
+	if (ret) {
+		dev_warn(&priv->serdev->dev, "Failed to set LED brightness: %d\n", ret);
+	} else {
+		dev_dbg(&priv->serdev->dev, "LED brightness set to %u (scaled: %u)\n", 
+			brightness, scaled_brightness);
+	}
+}

@@ -19,6 +19,8 @@
 			status = "okay";
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart2_pins>;
+			/delete-property/ dmas;
+			/delete-property/ dma-names;
 		};
 	};
 
@@ -28,9 +30,10 @@
 			pamir_ai_sam: pamir-ai-sam {
 				compatible = "pamir-ai,sam";
 				status = "okay";
-				debug-level = <1>;
+				debug-level = <2>;
 				recovery-timeout-ms = <1000>;
-				ack-required;
+				power-poll-interval-ms = <0>; /* 0 means no polling */
+				/* ack-required; // Disabled to prevent ping spam */
 			};
 		};
 	};
@@ -41,8 +44,9 @@
 		__overlay__ {
 			uart2_pins: uart2_pins {
 				brcm,pins = <4 5>; /* TX on GPIO4, RX on GPIO5 */
-				brcm,function = <3 3>; /* ALT4 = 3 */
-				brcm,pull = <0 2>; /* OFF = 0, UP = 2 */
+				brcm,function = <3 3>; /* ALT4 = 3 for BCM2712 */
+				brcm,pull = <0 2>; /* TX=OFF, RX=UP */
+				drive-strength = <8>;
 			};
 		};
 	};
@@ -50,6 +54,7 @@
 	__overrides__ {
 		debug_level = <&pamir_ai_sam>,"debug-level:0";
 		recovery_timeout = <&pamir_ai_sam>,"recovery-timeout-ms:0";
+		power_poll_interval = <&pamir_ai_sam>,"power-poll-interval-ms:0";
 		ack_required = <&pamir_ai_sam>,"ack-required?";
 	};
 }; 
