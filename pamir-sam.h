@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Pamir AI Sensor and Actuator Module (SAM) Header
+ * Pamir AI Signal Aggregation Module (SAM) Header
  *
  * Copyright (C) 2025 Pamir AI Incorporated - http://www.pamir.ai/
  */

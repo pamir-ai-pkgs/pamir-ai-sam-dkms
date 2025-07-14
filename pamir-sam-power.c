@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Pamir AI Sensor and Actuator Module (SAM) Power Manager
+ * Pamir AI Signal Aggregation Module (SAM) Power Manager
  *
  * Power management functionality.
  *

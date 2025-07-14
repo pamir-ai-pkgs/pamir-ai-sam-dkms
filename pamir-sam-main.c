@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Pamir AI Sensor and Actuator Module (SAM) Driver
+ * Pamir AI Signal Aggregation Module (SAM) Driver
  *
  * Driver for communication between host processor and RP2040 microcontroller
  * providing interface to sensor inputs and actuator outputs on CM5 device.
@@ -104,7 +104,7 @@ static int sam_protocol_probe(struct serdev_device *serdev)
 	priv->debug_head = 0;
 	priv->debug_tail = 0;
 
-	input_dev->name = "Pamir AI Sensor and Actuator Module";
+	input_dev->name = "Pamir AI Signal Aggregation Module";
 	input_dev->id.bustype = BUS_RS232;
 	input_dev->id.vendor = 0x0001;
 	input_dev->id.product = 0x0002;
@@ -228,4 +228,4 @@ module_serdev_device_driver(sam_protocol_driver);
 MODULE_ALIAS("serdev:pamir_sam_protocol");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Pamir AI Incorporated.");
-MODULE_DESCRIPTION("PamirAI Sensor and Actuator Module (SAM)");
+MODULE_DESCRIPTION("PamirAI Signal Aggregation Module (SAM)");

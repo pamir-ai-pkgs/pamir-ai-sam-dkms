@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Pamir AI Sensor and Actuator Module (SAM) Protocol Core
+ * Pamir AI Signal Aggregation Module (SAM) Protocol Core
  *
  * Core protocol functionality for the SAM driver.
  *

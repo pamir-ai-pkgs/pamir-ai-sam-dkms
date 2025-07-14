@@ -1,6 +1,6 @@
-# Pamir AI SAM (Sensor and Actuator Module) DKMS Module
+# Pamir AI SAM (Signal Aggregation Module) DKMS Module
 
-This package contains the DKMS (Dynamic Kernel Module Support) module for the Pamir AI SAM (Sensor and Actuator Module) driver for Raspberry Pi CM5.
+This package contains the DKMS (Dynamic Kernel Module Support) module for the Pamir AI SAM (Signal Aggregation Module) driver for Raspberry Pi CM5.
 
 ## Overview
 

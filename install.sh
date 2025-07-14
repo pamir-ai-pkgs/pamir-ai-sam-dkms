@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Pamir AI SAM DKMS Installation Script
-# This script installs the Pamir AI SAM (Sensor and Actuator Module) driver as a DKMS module
+# This script installs the Pamir AI SAM (Signal Aggregation Module) driver as a DKMS module
 
 set -e
 

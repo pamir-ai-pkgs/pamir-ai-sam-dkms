@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Pamir AI Sensor and Actuator Module (SAM) Input Handler
+ * Pamir AI Signal Aggregation Module (SAM) Input Handler
  *
  * Input device functionality for button events.
  *
