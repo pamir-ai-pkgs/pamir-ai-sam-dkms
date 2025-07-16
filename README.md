@@ -10,7 +10,7 @@ The Pamir AI SAM driver implements a highly optimized 4-byte packet protocol des
 
 ### Hardware Interfaces
 - **Button Input**: Physical button events via Linux input subsystem with hardware debouncing
-- **LED Control**: RGB LED control with multiple animation modes (static, blink, fade, rainbow)
+- **RGB LED Control**: Full RGB LED control with multiple animation modes and custom triggers
 - **Power Management**: Complete power state coordination with automatic boot/shutdown notifications
 - **E-ink Display**: Display control and status reporting with refresh management
 - **Debug Interface**: Comprehensive diagnostic codes and text messages with circular buffering
@@ -24,7 +24,8 @@ The Pamir AI SAM driver implements a highly optimized 4-byte packet protocol des
 
 ### Linux Integration
 - **Input Device**: Button events via `/dev/input/event*` with standard key codes
-- **LED Class Device**: LED control via `/sys/class/leds/pamir:status/brightness`
+- **LED Class Device**: RGB LED control via `/sys/class/leds/pamir:status/` with full color support
+- **LED Triggers**: Custom RGB triggers (`heartbeat-rgb`, `breathing-rgb`, `rainbow-rgb`)
 - **Character Device**: Raw protocol access via `/dev/pamir-sam` for debugging
 - **Power Metrics**: Sysfs interface for current, battery, temperature, and voltage monitoring
 - **Debug Interface**: Kernel logging with configurable verbosity levels
@@ -79,17 +80,67 @@ Button mappings:
 - SELECT button → KEY_ENTER
 - POWER button → KEY_POWER
 
-### LED Control
+### RGB LED Control
 
-Control LED via sysfs:
+The SAM driver provides comprehensive RGB LED control with multiple interfaces:
+
+#### RGB Color Control
+Control individual RGB components:
 ```bash
-# Set LED brightness (0-255)
+# Set RGB color (0-255 for each component)
+echo 255 | sudo tee /sys/class/leds/pamir:status/red    # Red component
+echo 128 | sudo tee /sys/class/leds/pamir:status/green  # Green component
+echo 0 | sudo tee /sys/class/leds/pamir:status/blue     # Blue component
+
+# Read current RGB values
+cat /sys/class/leds/pamir:status/red
+cat /sys/class/leds/pamir:status/green
+cat /sys/class/leds/pamir:status/blue
+```
+
+#### Animation Modes
+Control LED animation patterns:
+```bash
+# Set animation mode
+echo "static" | sudo tee /sys/class/leds/pamir:status/mode    # Solid color
+echo "blink" | sudo tee /sys/class/leds/pamir:status/mode     # Blinking
+echo "fade" | sudo tee /sys/class/leds/pamir:status/mode      # Fading
+echo "rainbow" | sudo tee /sys/class/leds/pamir:status/mode   # Rainbow cycle
+
+# Set animation timing (100-1600 milliseconds)
+echo 500 | sudo tee /sys/class/leds/pamir:status/timing
+
+# Read current mode and timing
+cat /sys/class/leds/pamir:status/mode
+cat /sys/class/leds/pamir:status/timing
+```
+
+#### LED Triggers
+Use standard Linux LED triggers with RGB support:
+```bash
+# List available triggers
+cat /sys/class/leds/pamir:status/trigger
+
+# Set RGB triggers
+echo "heartbeat-rgb" | sudo tee /sys/class/leds/pamir:status/trigger  # Red heartbeat
+echo "breathing-rgb" | sudo tee /sys/class/leds/pamir:status/trigger  # Blue breathing
+echo "rainbow-rgb" | sudo tee /sys/class/leds/pamir:status/trigger    # Rainbow cycling
+
+# Disable triggers
+echo "none" | sudo tee /sys/class/leds/pamir:status/trigger
+```
+
+#### Legacy Brightness Control
+Traditional brightness control (preserves RGB ratios):
+```bash
+# Set overall brightness (0-255)
 echo 128 | sudo tee /sys/class/leds/pamir:status/brightness
 
 # Get current brightness
 cat /sys/class/leds/pamir:status/brightness
 ```
 
+#### Raw Protocol Commands
 Send LED commands via character device:
 ```bash
 # Set LED to red (static mode)
@@ -258,18 +309,37 @@ dmesg | grep -i pamir
    sudo evtest /dev/input/event<N>
    ```
 
-### LED Control Issues
+### RGB LED Control Issues
 
-1. Check LED class device:
+1. Check LED class device and RGB attributes:
    ```bash
    ls -la /sys/class/leds/pamir:status/
+   # Should show: red, green, blue, mode, timing, trigger, brightness
    ```
 
-2. Verify LED hardware:
+2. Verify RGB LED hardware:
    ```bash
-   # Test LED brightness
-   echo 255 | sudo tee /sys/class/leds/pamir:status/brightness
-   echo 0 | sudo tee /sys/class/leds/pamir:status/brightness
+   # Test RGB components
+   echo 255 | sudo tee /sys/class/leds/pamir:status/red
+   echo 255 | sudo tee /sys/class/leds/pamir:status/green
+   echo 255 | sudo tee /sys/class/leds/pamir:status/blue
+   
+   # Test animation modes
+   echo "blink" | sudo tee /sys/class/leds/pamir:status/mode
+   echo "500" | sudo tee /sys/class/leds/pamir:status/timing
+   ```
+
+3. Test RGB LED triggers:
+   ```bash
+   # List available triggers
+   cat /sys/class/leds/pamir:status/trigger
+   # Should show: none heartbeat-rgb breathing-rgb rainbow-rgb
+   
+   # Test trigger activation
+   echo "heartbeat-rgb" | sudo tee /sys/class/leds/pamir:status/trigger
+   
+   # Disable trigger
+   echo "none" | sudo tee /sys/class/leds/pamir:status/trigger
    ```
 
 ## Implementation Status
@@ -278,7 +348,7 @@ dmesg | grep -i pamir
 |-------------------|-----------|---------------------|-------------------------------------------------|
 | Protocol Core      | Complete  | 100%                | Core packet processing functionality fully implemented and tested |
 | Input Handler       | Complete  | 100%                | Button events fully supported with Linux input subsystem integration |
-| LED Handler         | Partial   | 75%                 | Basic control implemented; LED brightness control from host is pending |
+| RGB LED Handler     | Complete  | 95%                 | Full RGB control, animation modes, and custom triggers implemented |
 | Power Manager       | Complete  | 100%                | Boot/shutdown notifications and poll-based power metrics fully implemented |
 | Display Controller  | Minimal   | 25%                 | Status reporting only; active display control pending |
 | Debug Interface     | Complete  | 100%                | Both debug codes and text messages fully supported |
@@ -305,13 +375,36 @@ dmesg | grep -i pamir
 - **Recovery Timeout**: 1000 ms default (configurable via device tree)
 - **Power Polling**: Configurable interval (default 1000 ms)
 
-## Required Kernel Modifications
+## Advanced Features
 
-For complete functionality, some additional kernel modifications may be needed:
+### RGB LED Control Features
+- **Full RGB Color Control**: Individual R, G, B component control (0-255 range)
+- **Animation Modes**: Static, blink, fade, and rainbow animation patterns
+- **Custom Triggers**: RGB-aware LED triggers for system integration
+- **Timing Control**: Configurable animation timing (100-1600ms)
+- **Legacy Compatibility**: Maintains standard LED brightness interface
 
-### LED Control Enhancement
-- Implement host-side LED brightness control callback
-- Add RGB color space conversion utilities
+### RGB LED Triggers
+- **`heartbeat-rgb`**: Red LED with heartbeat pattern (double-pulse)
+- **`breathing-rgb`**: Blue LED with smooth breathing animation
+- **`rainbow-rgb`**: Full spectrum rainbow color cycling
+- **Timer-based**: Kernel timer implementation for smooth animations
+
+### Sysfs Interface Structure
+The SAM driver provides a comprehensive sysfs interface for RGB LED control:
+
+```
+/sys/class/leds/pamir:status/
+├── brightness          # Overall brightness (0-255)
+├── red                 # Red component (0-255)
+├── green               # Green component (0-255)
+├── blue                # Blue component (0-255)
+├── mode                # Animation mode (static/blink/fade/rainbow)
+├── timing              # Animation timing (100-1600ms)
+├── trigger             # LED trigger (none/heartbeat-rgb/breathing-rgb/rainbow-rgb)
+├── max_brightness      # Maximum brightness value (255)
+└── uevent              # Device events
+```
 
 ### Display Control Enhancement  
 - Implement framebuffer or DRM driver for active display control
@@ -320,6 +413,40 @@ For complete functionality, some additional kernel modifications may be needed:
 ### Extended Protocol Support
 - Define and implement extended commands for advanced functionality
 - Add support for future protocol expansions
+
+## Testing and Validation
+
+### SAM Test Utility
+The driver includes a comprehensive test utility (`sam_test.c`) that provides:
+
+- **Protocol Testing**: Complete validation of all 8 message types
+- **RGB LED Testing**: Full RGB color control, animation modes, and trigger testing
+- **Input Event Monitoring**: Real-time button event monitoring
+- **Power Metrics Testing**: Power management command validation
+- **Interactive Mode**: Menu-driven testing interface
+- **Performance Metrics**: Packet timing, error rates, and statistics
+
+#### Running Tests
+```bash
+# Compile the test utility
+gcc -o sam_test sam_test.c
+
+# Run comprehensive tests
+sudo ./sam_test
+
+# Run interactive mode
+sudo ./sam_test -i
+
+# Test specific components
+sudo ./sam_test -t led      # Test LED functionality
+sudo ./sam_test -t system   # Test system commands
+sudo ./sam_test -t power    # Test power management
+```
+
+### Python Test Scripts
+Additional Python test scripts are available in the firmware directory:
+- `test_sam_protocol.py`: Comprehensive protocol validation
+- `test_sam_basic.py`: Quick functionality tests
 
 ## Uninstallation
 
