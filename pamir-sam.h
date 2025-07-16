@@ -297,6 +297,8 @@ void cleanup_power_metrics_sysfs(struct sam_protocol_data *priv);
 
 /* LED control functions */
 void sam_led_brightness_set(struct led_classdev *led_cdev, enum led_brightness brightness);
+int register_led_devices(struct sam_protocol_data *priv);
+void unregister_led_devices(void);
 
 /* Message handlers */
 void process_button_packet(struct sam_protocol_data *priv,
@@ -321,7 +323,6 @@ int setup_char_device(struct sam_protocol_data *priv);
 void cleanup_char_device(struct sam_protocol_data *priv);
 
 /* Exported globals */
-extern struct led_classdev *pamir_led;
 extern struct sam_protocol_data *g_sam_protocol_data;
 
 #endif /* _PAMIR_SAM_H */ 

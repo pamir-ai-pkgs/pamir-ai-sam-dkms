@@ -182,19 +182,11 @@ static int sam_protocol_probe(struct serdev_device *serdev)
 		return ret;
 	}
 
-	/* Set up LED class device */
-	pamir_led = devm_kzalloc(&serdev->dev, sizeof(struct led_classdev), GFP_KERNEL);
-	if (pamir_led) {
-		pamir_led->name = "pamir:status";
-		pamir_led->max_brightness = 255;
-		pamir_led->brightness_set = sam_led_brightness_set; /* Host-side LED control */
-		pamir_led->brightness = 0;
-
-		ret = devm_led_classdev_register(&serdev->dev, pamir_led);
-		if (ret) {
-			dev_err(&serdev->dev, "Failed to register LED: %d\n", ret);
-			pamir_led = NULL; /* Clear on failure */
-		}
+	/* Register LED class devices */
+	ret = register_led_devices(priv);
+	if (ret) {
+		dev_err(&serdev->dev, "Failed to register LED devices: %d\n", ret);
+		return ret;
 	}
 
 	serdev_device_set_drvdata(serdev, priv);
@@ -316,6 +308,9 @@ static void sam_protocol_remove(struct serdev_device *serdev)
 
 	/* Clean up character device */
 	cleanup_char_device(priv);
+
+	/* Clean up LED devices */
+	unregister_led_devices();
 
 	serdev_device_close(serdev);
 	input_unregister_device(priv->input_dev);
