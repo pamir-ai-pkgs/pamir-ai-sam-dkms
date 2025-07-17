@@ -55,6 +55,41 @@ static int send_sam_version(struct sam_protocol_data *priv)
 }
 
 /**
+ * send_display_release() - Send display release signal to RP2040
+ * @priv: Private driver data
+ *
+ * Send display release signal to notify RP2040 that Pi has booted
+ * and RP2040 should release eink control back to Pi.
+ *
+ * Return: 0 on success, negative error code on failure
+ */
+static int send_display_release(struct sam_protocol_data *priv)
+{
+	struct sam_protocol_packet packet;
+	int ret;
+
+	if (!priv || !priv->serdev) {
+		return -ENODEV;
+	}
+
+	/* Send display release command */
+	packet.type_flags = TYPE_DISPLAY | 0x07; /* Display release command */
+	packet.data[0] = 0xFF; /* Release signal */
+	packet.data[1] = 0x00; /* Reserved */
+
+	debug_uart_print(&priv->serdev->dev, "Sending display release signal");
+
+	ret = send_packet(priv, &packet);
+	if (ret) {
+		dev_err(&priv->serdev->dev, "Failed to send display release signal: %d\n", ret);
+		return ret;
+	}
+
+	dev_info(&priv->serdev->dev, "Display release signal sent successfully\n");
+	return 0;
+}
+
+/**
  * send_boot_notification() - Send boot notification to RP2040
  * @priv: Private driver data
  *
@@ -94,6 +129,13 @@ int send_boot_notification(struct sam_protocol_data *priv)
 	ret = send_packet(priv, &packet);
 	if (ret) {
 		dev_err(&priv->serdev->dev, "Boot notification: power state failed\n");
+		return ret;
+	}
+
+	/* Step 3: Send display release signal */
+	ret = send_display_release(priv);
+	if (ret) {
+		dev_err(&priv->serdev->dev, "Boot notification: display release failed\n");
 		return ret;
 	}
 

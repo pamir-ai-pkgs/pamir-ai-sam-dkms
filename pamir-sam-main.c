@@ -254,6 +254,13 @@ static int sam_protocol_probe(struct serdev_device *serdev)
 		/* Non-fatal, continue initialization */
 	}
 
+	/* Set up power supply interface */
+	ret = setup_power_supply(priv);
+	if (ret) {
+		dev_warn(&serdev->dev, "Failed to setup power supply: %d\n", ret);
+		/* Non-fatal, continue initialization */
+	}
+
 	/* Send boot notification with version exchange */
 	ret = send_boot_notification(priv);
 	if (ret == 0) {
@@ -299,6 +306,9 @@ static void sam_protocol_remove(struct serdev_device *serdev)
 
 	/* Clean up power metrics sysfs interface */
 	cleanup_power_metrics_sysfs(priv);
+
+	/* Clean up power supply interface */
+	cleanup_power_supply(priv);
 
 	if (priv->work_queue)
 		destroy_workqueue(priv->work_queue);

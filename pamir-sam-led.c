@@ -11,7 +11,7 @@
 #include <linux/timer.h>
 
 /* LED class devices for multiple LED support */
-#define MAX_LEDS 1  /* Only 1 physical LED on hardware */
+#define MAX_LEDS 7  /* Only 1 physical LED on hardware */
 struct led_classdev *pamir_leds[MAX_LEDS];
 
 /* RGB LED state for each LED */
@@ -229,13 +229,8 @@ void sam_led_brightness_set(struct led_classdev *led_cdev, enum led_brightness b
 
 	/* Parse LED ID from device name (pamir:led0, pamir:led1, etc.) */
 	if (sscanf(led_cdev->name, "pamir:led%hhu", &led_id) != 1) {
-		/* Try legacy format */
-		if (strcmp(led_cdev->name, "pamir:status") == 0) {
-			led_id = 0;
-		} else {
-			pr_warn("pamir-sam: LED brightness_set: unknown LED %s\n", led_cdev->name);
-			return;
-		}
+		pr_warn("pamir-sam: LED brightness_set: unknown LED %s\n", led_cdev->name);
+		return;
 	}
 
 	/* Validate LED ID */
@@ -288,11 +283,7 @@ static ssize_t led_red_show(struct device *dev, struct device_attribute *attr, c
 	
 	/* Parse LED ID from device name */
 	if (sscanf(dev_name(dev), "pamir:led%hhu", &led_id) != 1) {
-		if (strcmp(dev_name(dev), "pamir:status") == 0) {
-			led_id = 0;
-		} else {
-			return -EINVAL;
-		}
+		return -EINVAL;
 	}
 	
 	if (led_id >= MAX_LEDS)
@@ -311,11 +302,7 @@ static ssize_t led_red_store(struct device *dev, struct device_attribute *attr,
 	
 	/* Parse LED ID from device name */
 	if (sscanf(dev_name(dev), "pamir:led%hhu", &led_id) != 1) {
-		if (strcmp(dev_name(dev), "pamir:status") == 0) {
-			led_id = 0;
-		} else {
-			return -EINVAL;
-		}
+		return -EINVAL;
 	}
 	
 	if (led_id >= MAX_LEDS)
@@ -351,11 +338,7 @@ static ssize_t led_green_show(struct device *dev, struct device_attribute *attr,
 	
 	/* Parse LED ID from device name */
 	if (sscanf(dev_name(dev), "pamir:led%hhu", &led_id) != 1) {
-		if (strcmp(dev_name(dev), "pamir:status") == 0) {
-			led_id = 0;
-		} else {
-			return -EINVAL;
-		}
+		return -EINVAL;
 	}
 	
 	if (led_id >= MAX_LEDS)
@@ -374,11 +357,7 @@ static ssize_t led_green_store(struct device *dev, struct device_attribute *attr
 	
 	/* Parse LED ID from device name */
 	if (sscanf(dev_name(dev), "pamir:led%hhu", &led_id) != 1) {
-		if (strcmp(dev_name(dev), "pamir:status") == 0) {
-			led_id = 0;
-		} else {
-			return -EINVAL;
-		}
+		return -EINVAL;
 	}
 	
 	if (led_id >= MAX_LEDS)
@@ -414,11 +393,7 @@ static ssize_t led_blue_show(struct device *dev, struct device_attribute *attr, 
 	
 	/* Parse LED ID from device name */
 	if (sscanf(dev_name(dev), "pamir:led%hhu", &led_id) != 1) {
-		if (strcmp(dev_name(dev), "pamir:status") == 0) {
-			led_id = 0;
-		} else {
-			return -EINVAL;
-		}
+		return -EINVAL;
 	}
 	
 	if (led_id >= MAX_LEDS)
@@ -437,11 +412,7 @@ static ssize_t led_blue_store(struct device *dev, struct device_attribute *attr,
 	
 	/* Parse LED ID from device name */
 	if (sscanf(dev_name(dev), "pamir:led%hhu", &led_id) != 1) {
-		if (strcmp(dev_name(dev), "pamir:status") == 0) {
-			led_id = 0;
-		} else {
-			return -EINVAL;
-		}
+		return -EINVAL;
 	}
 	
 	if (led_id >= MAX_LEDS)
@@ -481,11 +452,7 @@ static ssize_t led_mode_show(struct device *dev, struct device_attribute *attr, 
 	
 	/* Parse LED ID from device name */
 	if (sscanf(dev_name(dev), "pamir:led%hhu", &led_id) != 1) {
-		if (strcmp(dev_name(dev), "pamir:status") == 0) {
-			led_id = 0;
-		} else {
-			return -EINVAL;
-		}
+		return -EINVAL;
 	}
 	
 	if (led_id >= MAX_LEDS)
@@ -524,11 +491,7 @@ static ssize_t led_mode_store(struct device *dev, struct device_attribute *attr,
 	
 	/* Parse LED ID from device name */
 	if (sscanf(dev_name(dev), "pamir:led%hhu", &led_id) != 1) {
-		if (strcmp(dev_name(dev), "pamir:status") == 0) {
-			led_id = 0;
-		} else {
-			return -EINVAL;
-		}
+		return -EINVAL;
 	}
 	
 	if (led_id >= MAX_LEDS)
@@ -574,11 +537,7 @@ static ssize_t led_timing_show(struct device *dev, struct device_attribute *attr
 	
 	/* Parse LED ID from device name */
 	if (sscanf(dev_name(dev), "pamir:led%hhu", &led_id) != 1) {
-		if (strcmp(dev_name(dev), "pamir:status") == 0) {
-			led_id = 0;
-		} else {
-			return -EINVAL;
-		}
+		return -EINVAL;
 	}
 	
 	if (led_id >= MAX_LEDS)
@@ -600,11 +559,7 @@ static ssize_t led_timing_store(struct device *dev, struct device_attribute *att
 	
 	/* Parse LED ID from device name */
 	if (sscanf(dev_name(dev), "pamir:led%hhu", &led_id) != 1) {
-		if (strcmp(dev_name(dev), "pamir:status") == 0) {
-			led_id = 0;
-		} else {
-			return -EINVAL;
-		}
+		return -EINVAL;
 	}
 	
 	if (led_id >= MAX_LEDS)
@@ -677,14 +632,10 @@ int register_led_devices(struct sam_protocol_data *priv)
 		}
 		
 		/* Set LED device name */
-		if (i == 0) {
-			pamir_leds[i]->name = "pamir:status";  /* Keep legacy name for LED 0 */
-		} else {
-			pamir_leds[i]->name = devm_kasprintf(&priv->serdev->dev, GFP_KERNEL, "pamir:led%d", i);
-			if (!pamir_leds[i]->name) {
-				ret = -ENOMEM;
-				goto err_cleanup;
-			}
+		pamir_leds[i]->name = devm_kasprintf(&priv->serdev->dev, GFP_KERNEL, "pamir:led%d", i);
+		if (!pamir_leds[i]->name) {
+			ret = -ENOMEM;
+			goto err_cleanup;
 		}
 		
 		pamir_leds[i]->brightness_set = sam_led_brightness_set;

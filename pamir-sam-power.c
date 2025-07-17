@@ -7,6 +7,7 @@
  * Copyright (C) 2025 Pamir AI Incorporated - http://www.pamir.ai/
  */
 #include "pamir-sam.h"
+#include <linux/power_supply.h>
 
 /**
  * process_power_packet() - Process power management packet
@@ -115,7 +116,7 @@ int send_power_metrics_request(struct sam_protocol_data *priv)
 		return -ENODEV;
 	}
 
-	packet.type_flags = TYPE_POWER | POWER_CMD_REQUEST_METRICS;
+	packet.type_flags = POWER_CMD_REQUEST_METRICS;
 	packet.data[0] = 0x00; /* Request all metrics */
 	packet.data[1] = 0x00; /* Reserved */
 
@@ -342,4 +343,121 @@ void cleanup_power_metrics_sysfs(struct sam_protocol_data *priv)
 
 	sysfs_remove_group(&priv->serdev->dev.kobj, &power_metrics_group);
 	dev_info(&priv->serdev->dev, "Power metrics sysfs interface removed\n");
+}
+
+/* Power supply interface */
+static struct power_supply *pamir_battery_psy;
+
+static int pamir_battery_get_property(struct power_supply *psy,
+				      enum power_supply_property prop,
+				      union power_supply_propval *val)
+{
+	struct sam_protocol_data *priv = g_sam_protocol_data;
+	bool valid;
+
+	if (!priv) {
+		return -ENODEV;
+	}
+
+	mutex_lock(&priv->power_metrics_mutex);
+	valid = priv->power_metrics.metrics_valid;
+
+	if (!valid) {
+		mutex_unlock(&priv->power_metrics_mutex);
+		return -ENODATA;
+	}
+
+	switch (prop) {
+	case POWER_SUPPLY_PROP_STATUS:
+		val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+		break;
+	case POWER_SUPPLY_PROP_CAPACITY:
+		val->intval = priv->power_metrics.battery_percent;
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		val->intval = priv->power_metrics.voltage_mv * 1000; /* Convert mV to µV */
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		val->intval = priv->power_metrics.current_ma * 1000; /* Convert mA to µA */
+		break;
+	case POWER_SUPPLY_PROP_TEMP:
+		val->intval = priv->power_metrics.temperature_dc; /* Already in 0.1°C */
+		break;
+	case POWER_SUPPLY_PROP_TECHNOLOGY:
+		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+		break;
+	case POWER_SUPPLY_PROP_PRESENT:
+		val->intval = 1;
+		break;
+	default:
+		mutex_unlock(&priv->power_metrics_mutex);
+		return -EINVAL;
+	}
+
+	mutex_unlock(&priv->power_metrics_mutex);
+	return 0;
+}
+
+static enum power_supply_property pamir_battery_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_PRESENT,
+};
+
+static const struct power_supply_desc pamir_battery_desc = {
+	.name = "pamir_battery",
+	.type = POWER_SUPPLY_TYPE_BATTERY,
+	.properties = pamir_battery_props,
+	.num_properties = ARRAY_SIZE(pamir_battery_props),
+	.get_property = pamir_battery_get_property,
+};
+
+/**
+ * setup_power_supply() - Create power supply interface
+ * @priv: Private driver data
+ *
+ * Create power supply class device for battery metrics.
+ *
+ * Return: 0 on success, negative error code on failure
+ */
+int setup_power_supply(struct sam_protocol_data *priv)
+{
+	struct power_supply_config psy_cfg = {};
+
+	if (!priv || !priv->serdev) {
+		return -ENODEV;
+	}
+
+	psy_cfg.drv_data = priv;
+
+	pamir_battery_psy = power_supply_register(&priv->serdev->dev,
+						  &pamir_battery_desc,
+						  &psy_cfg);
+	if (IS_ERR(pamir_battery_psy)) {
+		dev_err(&priv->serdev->dev, "Failed to register power supply: %ld\n",
+			PTR_ERR(pamir_battery_psy));
+		return PTR_ERR(pamir_battery_psy);
+	}
+
+	dev_info(&priv->serdev->dev, "Power supply interface created at /sys/class/power/pamir_battery\n");
+	return 0;
+}
+
+/**
+ * cleanup_power_supply() - Remove power supply interface
+ * @priv: Private driver data
+ *
+ * Remove power supply class device.
+ */
+void cleanup_power_supply(struct sam_protocol_data *priv)
+{
+	if (pamir_battery_psy) {
+		power_supply_unregister(pamir_battery_psy);
+		pamir_battery_psy = NULL;
+		dev_info(&priv->serdev->dev, "Power supply interface removed\n");
+	}
 }

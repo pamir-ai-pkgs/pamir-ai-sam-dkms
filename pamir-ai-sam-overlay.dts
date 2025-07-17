@@ -32,7 +32,7 @@
 				status = "okay";
 				debug-level = <2>;
 				recovery-timeout-ms = <1000>;
-				power-poll-interval-ms = <0>; /* 0 means no polling */
+				power-poll-interval-ms = <1000>; /* 0 means no polling */
 				/* ack-required; // Disabled to prevent ping spam */
 			};
 		};

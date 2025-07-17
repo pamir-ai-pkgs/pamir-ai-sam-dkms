@@ -295,6 +295,10 @@ void sam_protocol_flush_rx_buffer(struct sam_protocol_data *priv);
 int setup_power_metrics_sysfs(struct sam_protocol_data *priv);
 void cleanup_power_metrics_sysfs(struct sam_protocol_data *priv);
 
+/* Power supply interface functions */
+int setup_power_supply(struct sam_protocol_data *priv);
+void cleanup_power_supply(struct sam_protocol_data *priv);
+
 /* LED control functions */
 void sam_led_brightness_set(struct led_classdev *led_cdev, enum led_brightness brightness);
 int register_led_devices(struct sam_protocol_data *priv);
