@@ -11,7 +11,7 @@
 #include <linux/timer.h>
 
 /* LED class devices for multiple LED support */
-#define MAX_LEDS 7  /* Only 1 physical LED on hardware */
+#define MAX_LEDS 16  /* supports 16 LEDs (0-15) */
 struct led_classdev *pamir_leds[MAX_LEDS];
 
 /* RGB LED state for each LED */
@@ -19,7 +19,7 @@ struct pamir_led_state {
 	uint8_t r, g, b;
 	uint8_t mode;
 	uint8_t brightness;
-	uint8_t timing;  /* Animation timing value (0-15) */
+	uint8_t timing;  /* Animation timing value (0-3: 100ms/200ms/500ms/1000ms) */
 };
 
 static struct pamir_led_state led_states[MAX_LEDS];
@@ -100,8 +100,9 @@ static void rgb_trigger_timer_function(struct timer_list *t)
 	}
 	
 	/* Send LED command to firmware */
-	ret = send_led_command(priv, LED_MODE_STATIC | active_trigger_led, 
-			      (r * 15) / 255, (g * 15) / 255, (b * 15) / 255, 0);
+	ret = send_led_command(priv, active_trigger_led, 
+			      (r * 15) / 255, (g * 15) / 255, (b * 15) / 255, 
+			      LED_MODE_STATIC, LED_TIME_100MS);
 	if (ret) {
 		dev_warn(&priv->serdev->dev, "Trigger LED update failed: %d\n", ret);
 	}
@@ -169,20 +170,26 @@ static void rgb_trigger_deactivate(struct led_classdev *led_cdev)
 void process_led_packet(struct sam_protocol_data *priv,
 			const struct sam_protocol_packet *packet)
 {
-	uint8_t mode = packet->type_flags & LED_MODE_MASK;
+	/* Extract LED ID from type_flags bits 3-0 */
 	uint8_t led_id = packet->type_flags & LED_ID_MASK;
+	uint8_t execute = (packet->type_flags & LED_CMD_EXECUTE) ? 1 : 0;
+	
+	/* Extract RGB values from data[0] */
 	uint8_t r = (packet->data[0] >> 4) & 0x0F;
 	uint8_t g = packet->data[0] & 0x0F;
+	
+	/* Extract blue, mode, and timing from data[1] */
 	uint8_t b = (packet->data[1] >> 4) & 0x0F;
-	uint8_t value = packet->data[1] & 0x0F;
+	uint8_t mode = (packet->data[1] >> LED_MODE_SHIFT) & LED_MODE_MASK;
+	uint8_t timing = (packet->data[1] >> LED_TIME_SHIFT) & LED_TIME_MASK;
 
 	/* Scale RGB values to 0-255 range */
 	r = (r * 255) / 15;
 	g = (g * 255) / 15;
 	b = (b * 255) / 15;
 
-	dev_dbg(&priv->serdev->dev, "LED packet - LED: %u, Mode: 0x%02x, R: %u, G: %u, B: %u, Value: %u\n",
-	     led_id, mode, r, g, b, value);
+	dev_dbg(&priv->serdev->dev, "LED packet - LED: %u, Execute: %u, Mode: %u, R: %u, G: %u, B: %u, Timing: %u\n",
+	     led_id, execute, mode, r, g, b, timing);
 
 	/* Validate LED ID */
 	if (led_id >= MAX_LEDS) {
@@ -264,7 +271,7 @@ void sam_led_brightness_set(struct led_classdev *led_cdev, enum led_brightness b
 	g = (g * 15) / 255;
 	b = (b * 15) / 255;
 
-	ret = send_led_command(priv, LED_MODE_STATIC | led_id, r, g, b, 0);
+	ret = send_led_command(priv, led_id, r, g, b, LED_MODE_STATIC, LED_TIME_100MS);
 	
 	if (ret) {
 		dev_warn(&priv->serdev->dev, "Failed to set LED %u brightness: %d\n", led_id, ret);
@@ -324,7 +331,7 @@ static ssize_t led_red_store(struct device *dev, struct device_attribute *attr,
 		uint8_t g = (led_states[led_id].g * 15) / 255;
 		uint8_t b = (led_states[led_id].b * 15) / 255;
 		
-		ret = send_led_command(priv, LED_MODE_STATIC | led_id, r, g, b, 0);
+		ret = send_led_command(priv, led_id, r, g, b, LED_MODE_STATIC, LED_TIME_100MS);
 		if (ret)
 			return ret;
 	}
@@ -379,7 +386,7 @@ static ssize_t led_green_store(struct device *dev, struct device_attribute *attr
 		uint8_t g = (led_states[led_id].g * 15) / 255;
 		uint8_t b = (led_states[led_id].b * 15) / 255;
 		
-		ret = send_led_command(priv, LED_MODE_STATIC | led_id, r, g, b, 0);
+		ret = send_led_command(priv, led_id, r, g, b, LED_MODE_STATIC, LED_TIME_100MS);
 		if (ret)
 			return ret;
 	}
@@ -434,7 +441,7 @@ static ssize_t led_blue_store(struct device *dev, struct device_attribute *attr,
 		uint8_t g = (led_states[led_id].g * 15) / 255;
 		uint8_t b = (led_states[led_id].b * 15) / 255;
 		
-		ret = send_led_command(priv, LED_MODE_STATIC | led_id, r, g, b, 0);
+		ret = send_led_command(priv, led_id, r, g, b, LED_MODE_STATIC, LED_TIME_100MS);
 		if (ret)
 			return ret;
 	}
@@ -523,7 +530,7 @@ static ssize_t led_mode_store(struct device *dev, struct device_attribute *attr,
 		uint8_t b = (led_states[led_id].b * 15) / 255;
 		uint8_t time_value = led_states[led_id].timing;
 		
-		ret = send_led_command(priv, mode | led_id, r, g, b, time_value);
+		ret = send_led_command(priv, led_id, r, g, b, mode, time_value);
 		if (ret)
 			return ret;
 	}
@@ -543,8 +550,15 @@ static ssize_t led_timing_show(struct device *dev, struct device_attribute *attr
 	if (led_id >= MAX_LEDS)
 		return -EINVAL;
 		
-	/* Convert timing value to milliseconds (0-15 maps to 100-1600ms) */
-	uint16_t timing_ms = (led_states[led_id].timing + 1) * 100;
+	/* Convert timing value to milliseconds (2-bit: 0=100ms, 1=200ms, 2=500ms, 3=1000ms) */
+	uint16_t timing_ms;
+	switch (led_states[led_id].timing & 0x03) {
+	case 0: timing_ms = 100; break;
+	case 1: timing_ms = 200; break;
+	case 2: timing_ms = 500; break;
+	case 3: timing_ms = 1000; break;
+	default: timing_ms = 100; break;
+	}
 	return sprintf(buf, "%u\n", timing_ms);
 }
 
@@ -569,13 +583,15 @@ static ssize_t led_timing_store(struct device *dev, struct device_attribute *att
 	if (ret)
 		return ret;
 		
-	/* Convert milliseconds to 4-bit timing value (100-1600ms -> 0-15) */
-	if (value < 100)
-		time_value = 0;
-	else if (value > 1600)
-		time_value = 15;
+	/* Convert milliseconds to 2-bit timing value */
+	if (value <= 100)
+		time_value = 0;  /* 100ms */
+	else if (value <= 200)
+		time_value = 1;  /* 200ms */
+	else if (value <= 500)
+		time_value = 2;  /* 500ms */
 	else
-		time_value = (value / 100) - 1;
+		time_value = 3;  /* 1000ms */
 		
 	/* Store new timing value */
 	led_states[led_id].timing = time_value;
@@ -587,7 +603,7 @@ static ssize_t led_timing_store(struct device *dev, struct device_attribute *att
 		uint8_t b = (led_states[led_id].b * 15) / 255;
 		uint8_t mode = led_states[led_id].mode;
 		
-		ret = send_led_command(priv, mode | led_id, r, g, b, time_value);
+		ret = send_led_command(priv, led_id, r, g, b, mode, time_value);
 		if (ret)
 			return ret;
 	}
@@ -664,7 +680,7 @@ int register_led_devices(struct sam_protocol_data *priv)
 		led_states[i].b = 0;
 		led_states[i].mode = LED_MODE_STATIC;
 		led_states[i].brightness = 0;
-		led_states[i].timing = 4; /* Default 500ms timing */
+		led_states[i].timing = LED_TIME_500MS; /* Default 500ms timing */
 	}
 	
 	/* Initialize trigger timer */

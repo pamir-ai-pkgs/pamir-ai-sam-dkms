@@ -9,16 +9,41 @@
 #include "pamir-sam.h"
 
 /**
- * calculate_checksum() - Calculate XOR checksum for packet
+ * calculate_crc8() - Calculate CRC8 checksum for data
+ * @data: Data to calculate CRC8 for
+ * @len: Length of data
+ *
+ * Calculate CRC8 checksum using polynomial 0x07 (x^8 + x^2 + x + 1)
+ *
+ * Return: Calculated CRC8 checksum
+ */
+static uint8_t calculate_crc8(const uint8_t *data, size_t len)
+{
+	uint8_t crc = 0x00;
+	for (size_t i = 0; i < len; i++) {
+		crc ^= data[i];
+		for (int j = 0; j < 8; j++) {
+			if (crc & 0x80) {
+				crc = (crc << 1) ^ 0x07;
+			} else {
+				crc <<= 1;
+			}
+		}
+	}
+	return crc;
+}
+
+/**
+ * calculate_checksum() - Calculate CRC8 checksum for packet
  * @packet: Packet to calculate checksum for
  *
- * Calculate the XOR checksum of all bytes in the packet.
+ * Calculate the CRC8 checksum of first 3 bytes in the packet
  *
- * Return: Calculated checksum
+ * Return: Calculated CRC8 checksum
  */
 uint8_t calculate_checksum(const struct sam_protocol_packet *packet)
 {
-	return packet->type_flags ^ packet->data[0] ^ packet->data[1];
+	return calculate_crc8((const uint8_t *)packet, 3);
 }
 
 /**
@@ -70,24 +95,28 @@ int send_packet(struct sam_protocol_data *priv,
 /**
  * send_led_command() - Send LED control command
  * @priv: Private driver data
- * @mode: LED mode (static, blink, etc.)
+ * @led_id: LED ID (0-15)
  * @r: Red component (0-15)
  * @g: Green component (0-15)
  * @b: Blue component (0-15)
- * @value: Brightness or animation parameter
+ * @mode: LED mode (0-3)
+ * @timing: Timing value (0-3)
  *
- * Send a command to control the LED.
+ * Send a command to control the LED
  *
  * Return: 0 on success, negative error code on failure
  */
-int send_led_command(struct sam_protocol_data *priv, uint8_t mode,
-		     uint8_t r, uint8_t g, uint8_t b, uint8_t value)
+int send_led_command(struct sam_protocol_data *priv, uint8_t led_id,
+		     uint8_t r, uint8_t g, uint8_t b, uint8_t mode, uint8_t timing)
 {
 	struct sam_protocol_packet packet;
 
-	packet.type_flags = TYPE_LED | mode;
+	/* type_flags = [001][E][LED_ID] */
+	packet.type_flags = TYPE_LED | (led_id & LED_ID_MASK);
+	/* data[0] = [R][G] */
 	packet.data[0] = ((r & 0x0F) << 4) | (g & 0x0F);
-	packet.data[1] = ((b & 0x0F) << 4) | (value & 0x0F);
+	/* data[1] = [B][MODE][TIMING] */
+	packet.data[1] = ((b & 0x0F) << 4) | ((mode & LED_MODE_MASK) << LED_MODE_SHIFT) | (timing & LED_TIME_MASK);
 
 	return send_packet(priv, &packet);
 }

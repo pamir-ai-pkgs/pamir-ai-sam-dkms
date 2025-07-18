@@ -101,27 +101,40 @@
 #define BTN_POWER_MASK  0x08
 
 /* LED control flags */
-#define LED_CMD_IMMEDIATE 0x00
-#define LED_CMD_SEQUENCE  0x10
-#define LED_MODE_STATIC   0x00
-#define LED_MODE_BLINK    0x04
-#define LED_MODE_FADE     0x08
-#define LED_MODE_RAINBOW  0x0C
-#define LED_MODE_MASK     0x0C
-#define LED_ID_ALL        0x00
-#define LED_ID_MASK       0x03
+#define LED_CMD_EXECUTE   0x10  /* Execute bit in type_flags */
+#define LED_ID_MASK       0x0F  /* 4-bit LED ID (0-15) */
+#define LED_MODE_STATIC   0x00  /* Static mode */
+#define LED_MODE_BLINK    0x01  /* Blinking mode */
+#define LED_MODE_FADE     0x02  /* Fade mode */
+#define LED_MODE_RAINBOW  0x03  /* Rainbow mode */
+#define LED_MODE_MASK     0x03  /* 2-bit mode mask in data[1] */
+#define LED_MODE_SHIFT    2     /* Mode position in data[1] */
+#define LED_TIME_MASK     0x03  /* 2-bit timing mask in data[1] */
+#define LED_TIME_SHIFT    0     /* Timing position in data[1] */
+
+/* LED timing values */
+#define LED_TIME_100MS    0x00  /* 100ms intervals */
+#define LED_TIME_200MS    0x01  /* 200ms intervals */
+#define LED_TIME_500MS    0x02  /* 500ms intervals */
+#define LED_TIME_1000MS   0x03  /* 1000ms intervals */
 
 /* Power management commands */
-#define POWER_CMD_QUERY           0x00
-#define POWER_CMD_SET             0x10
-#define POWER_CMD_SLEEP           0x20
-#define POWER_CMD_SHUTDOWN        0x30
-#define POWER_CMD_CURRENT         0x40
-#define POWER_CMD_BATTERY         0x50
-#define POWER_CMD_TEMP            0x60
-#define POWER_CMD_VOLTAGE         0x70
-#define POWER_CMD_REQUEST_METRICS 0x80
-#define POWER_CMD_MASK            0xF0
+/* Control commands (0x00-0x0F) */
+#define POWER_CMD_QUERY           0x00  /* Query power status */
+#define POWER_CMD_SET             0x01  /* Set power state */
+#define POWER_CMD_SLEEP           0x02  /* Enter sleep mode */
+#define POWER_CMD_SHUTDOWN        0x03  /* Shutdown system */
+
+/* Reporting commands (0x10-0x1F) */
+#define POWER_CMD_CURRENT         0x10  /* Current draw reporting */
+#define POWER_CMD_BATTERY         0x11  /* Battery state reporting */
+#define POWER_CMD_TEMP            0x12  /* Temperature reporting */
+#define POWER_CMD_VOLTAGE         0x13  /* Voltage reporting */
+#define POWER_CMD_REQUEST_METRICS 0x1F  /* Request all metrics */
+
+#define POWER_CMD_MASK            0x1F  /* 5-bit command mask */
+#define POWER_CMD_CONTROL_MASK    0x0F  /* Control command mask */
+#define POWER_CMD_REPORT_MASK     0x10  /* Reporting command flag */
 
 /* Debug text flags */
 #define DEBUG_FIRST_CHUNK  0x10
@@ -139,7 +152,7 @@
  * struct sam_protocol_packet - SAM packet structure
  * @type_flags: Type (3 bits) and flags (5 bits)
  * @data: 16-bit payload (2 bytes)
- * @checksum: XOR checksum of all previous bytes
+ * @checksum: CRC8 checksum of all previous bytes
  *
  * This structure represents the ultra-optimized 4-byte packet format.
  */
@@ -276,8 +289,8 @@ int send_packet(struct sam_protocol_data *priv, struct sam_protocol_packet *pack
 void process_packet(struct sam_protocol_data *priv, const struct sam_protocol_packet *packet);
 
 /* Command senders */
-int send_led_command(struct sam_protocol_data *priv, uint8_t mode,
-		     uint8_t r, uint8_t g, uint8_t b, uint8_t value);
+int send_led_command(struct sam_protocol_data *priv, uint8_t led_id,
+		     uint8_t r, uint8_t g, uint8_t b, uint8_t mode, uint8_t timing);
 int send_system_command(struct sam_protocol_data *priv, uint8_t action,
 			uint8_t command, uint8_t subcommand);
 

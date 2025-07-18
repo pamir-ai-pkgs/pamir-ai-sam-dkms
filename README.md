@@ -124,7 +124,7 @@ echo "blink" | sudo tee /sys/class/leds/pamir:led0/mode     # Blinking
 echo "fade" | sudo tee /sys/class/leds/pamir:led0/mode      # Fading
 echo "rainbow" | sudo tee /sys/class/leds/pamir:led0/mode   # Rainbow cycle
 
-# Set animation timing (100-1600 milliseconds)
+# Set animation timing (100, 200, 500, or 1000 milliseconds)
 echo 500 | sudo tee /sys/class/leds/pamir:led0/timing
 
 # Control multiple LEDs independently
@@ -473,7 +473,7 @@ dmesg | grep -i pamir
 - **Full RGB Color Control**: Individual R, G, B component control (0-255 range)
 - **Animation Modes**: Static, blink, fade, and rainbow animation patterns
 - **Custom Triggers**: RGB-aware LED triggers for system integration
-- **Timing Control**: Configurable animation timing (100-1600ms)
+- **Timing Control**: Configurable animation timing (100ms, 200ms, 500ms, 1000ms)
 - **Standard LED Interface**: Maintains standard LED brightness interface
 
 ### RGB LED Triggers
@@ -492,7 +492,7 @@ The SAM driver provides a comprehensive sysfs interface for RGB LED control:
 ├── green               # Green component (0-255)
 ├── blue                # Blue component (0-255)
 ├── mode                # Animation mode (static/blink/fade/rainbow)
-├── timing              # Animation timing (100-1600ms)
+├── timing              # Animation timing (100/200/500/1000ms)
 ├── trigger             # LED trigger (none/heartbeat-rgb/breathing-rgb/rainbow-rgb)
 ├── max_brightness      # Maximum brightness value (255)
 └── uevent              # Device events
@@ -503,7 +503,7 @@ The SAM driver provides a comprehensive sysfs interface for RGB LED control:
 ├── green               # Green component (0-255)
 ├── blue                # Blue component (0-255)
 ├── mode                # Animation mode (static/blink/fade/rainbow)
-├── timing              # Animation timing (100-1600ms)
+├── timing              # Animation timing (100/200/500/1000ms)
 ├── trigger             # LED trigger (none/heartbeat-rgb/breathing-rgb/rainbow-rgb)
 ├── max_brightness      # Maximum brightness value (255)
 └── uevent              # Device events
