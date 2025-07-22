@@ -15,7 +15,7 @@ Architecture: all
 Depends: ${misc:Depends},
          dkms,
          device-tree-compiler,
-         linux-headers-rpi-2712 | linux-headers-generic,
+         linux-headers-rpi-2712
 Recommends:
 Suggests:
 Description: PamirAI Incorporated SAM DKMS kernel modules

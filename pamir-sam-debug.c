@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Pamir AI Sensor and Actuator Module (SAM) Debug Handler
+ * Pamir AI Signal Aggregation Module (SAM) Debug Handler
  *
  * Debug functionality for handling debug codes and text.
  *

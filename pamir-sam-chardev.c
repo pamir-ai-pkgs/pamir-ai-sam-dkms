@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Pamir AI Sensor and Actuator Module (SAM) Character Device
+ * Pamir AI Signal Aggregation Module (SAM) Character Device
  *
  * Character device interface for userspace access.
  *

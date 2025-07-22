@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Pamir AI Sensor and Actuator Module (SAM) Display Handler
+ * Pamir AI Signal Aggregation Module (SAM) Display Handler
  *
  * E-ink display control functionality.
  *
