@@ -180,7 +180,7 @@ struct debug_code_entry {
 
 /**
  * struct sam_power_metrics - Power metrics data
- * @current_ma: Current draw in milliamps
+ * @current_ma: Current draw in milliamps (positive=charging, negative=discharging)
  * @battery_percent: Battery charge percentage (0-100)
  * @temperature_dc: Temperature in deci-celsius (0.1°C units)
  * @voltage_mv: Voltage in millivolts
@@ -190,7 +190,7 @@ struct debug_code_entry {
  * Power metrics received from RP2040 microcontroller.
  */
 struct sam_power_metrics {
-	uint16_t current_ma;
+	int16_t current_ma;  /* Can be negative (discharging) */
 	uint16_t battery_percent;
 	int16_t temperature_dc;  /* Can be negative */
 	uint16_t voltage_mv;
