@@ -64,14 +64,14 @@ void process_power_packet(struct sam_protocol_data *priv,
 
 	/* Reporting Commands (0x10-0x1F) */
 	case POWER_CMD_CURRENT:
-		/* Current draw report from RP2040 (signed: positive=charging, negative=discharging) */
+		/* Current draw report from RP2040 */
 		value = data1 | (data2 << 8); /* Little-endian */
 		mutex_lock(&priv->power_metrics_mutex);
-		priv->power_metrics.current_ma = (int16_t)value; /* Cast to signed */
+		priv->power_metrics.current_ma = value;
 		priv->power_metrics.last_update = jiffies;
 		priv->power_metrics.metrics_valid = true;
 		mutex_unlock(&priv->power_metrics_mutex);
-		dev_dbg(&priv->serdev->dev, "Power metrics: Current = %d mA\n", (int16_t)value);
+		dev_dbg(&priv->serdev->dev, "Power metrics: Current = %u mA\n", value);
 		break;
 
 	case POWER_CMD_BATTERY:
@@ -198,7 +198,7 @@ reschedule:
 static ssize_t current_ma_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct sam_protocol_data *priv = g_sam_protocol_data;
-	int16_t current_ma;
+	uint16_t current_ma;
 	bool valid;
 
 	if (!priv) {
@@ -214,7 +214,7 @@ static ssize_t current_ma_show(struct device *dev, struct device_attribute *attr
 		return snprintf(buf, PAGE_SIZE, "data not available\n");
 	}
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", current_ma);
+	return snprintf(buf, PAGE_SIZE, "%u\n", current_ma);
 }
 
 static ssize_t battery_percent_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -401,7 +401,7 @@ static int pamir_battery_get_property(struct power_supply *psy,
 		val->intval = priv->power_metrics.voltage_mv * 1000; /* Convert mV to µV */
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		val->intval = (int)priv->power_metrics.current_ma * 1000; /* Convert mA to µA, preserve sign */
+		val->intval = priv->power_metrics.current_ma * 1000; /* Convert mA to µA */
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = priv->power_metrics.temperature_dc; /* Already in 0.1°C */
