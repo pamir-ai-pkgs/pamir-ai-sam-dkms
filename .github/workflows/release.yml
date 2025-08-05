@@ -58,7 +58,7 @@ jobs:
           echo "clean_version=${CLEAN_VERSION}" >> $GITHUB_OUTPUT
           echo "semantic_version=${SEMANTIC_VERSION}" >> $GITHUB_OUTPUT
           echo "debian_revision=${DEBIAN_REVISION}" >> $GITHUB_OUTPUT
-          echo "package_name=pamir-ai-SAM-dkms_${SEMANTIC_VERSION}-${DEBIAN_REVISION}_all.deb" >> $GITHUB_OUTPUT
+          echo "package_name=pamir-ai-sam-dkms_${SEMANTIC_VERSION}-${DEBIAN_REVISION}_all.deb" >> $GITHUB_OUTPUT
           
           echo "Building version: ${VERSION}"
           echo "Clean version: ${CLEAN_VERSION}"
@@ -161,7 +161,7 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pamir-ai-SAM-dkms-${{ steps.version.outputs.clean_version }}-arm64
+          name: pamir-ai-sam-dkms-${{ steps.version.outputs.clean_version }}-arm64
           path: |
             dist/*.deb
             dist/*.changes
