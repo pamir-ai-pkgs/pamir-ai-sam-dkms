@@ -1,3 +1,26 @@
+pamir-ai-sam-dkms (1.0.0-2) unstable; urgency=medium
+
+  [ utsavbalar1231 ]
+  * chore(debian): Improve error handling during installation
+  * fix(debian): avoid adding extra blank lines when modifying config.txt
+  * chore(build-deb.sh): Change BUILD_DIR to dist
+  * chore: Sensor and Actuator -> Signal Aggregation
+  * chore(debian): Fix installation on pi-gen
+  * feat: Implement missing features from TRM
+  * feat: Integrate custom RGB LED control
+  * chore: Add SAM protocol testing toolkit
+  * doc: Update README with latest changes
+  * feat: Power sysfs, eink release, LED improvements
+  * chore!: Update to SAM v0.2.0
+  * chore(docs): Add pamir sam protcol trm v0.2.0
+  * fix(power): Change current_ma to be signed for negative values
+  * Revert "fix(power): Change current_ma to be signed for negative values"
+  * fix(power): Change current_ma to be signed for negative values
+  * chore(sam_test.c)!: Rewrite and sync with PamirAI SAM version 2.0
+  * feat: Add github actions for debian package release
+
+ -- PamirAI Incorporated <founders@pamir.ai>  Tue, 05 Aug 2025 16:22:51 +0530
+
 pamir-ai-sam-dkms (1.0.0-1) unstable; urgency=medium
 
   * Initial release of PamirAI Incorporated SAM DKMS modules
