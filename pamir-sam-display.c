@@ -4,7 +4,7 @@
  *
  * E-ink display control functionality.
  *
- * Copyright (C) 2025 Pamir AI Incorporated - http://www.pamir.ai/
+ * Copyright (C) 2025 PamirAI Incorporated - http://www.pamir.ai/
  */
 #include "pamir-sam.h"
 

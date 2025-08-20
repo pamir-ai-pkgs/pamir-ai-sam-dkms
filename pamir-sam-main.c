@@ -5,7 +5,7 @@
  * Driver for communication between host processor and RP2040 microcontroller
  * providing interface to sensor inputs and actuator outputs on CM5 device.
  *
- * Copyright (C) 2025 Pamir AI Incorporated - http://www.pamir.ai/
+ * Copyright (C) 2025 PamirAI Incorporated - http://www.pamir.ai/
  */
 #include "pamir-sam.h"
 
@@ -351,5 +351,5 @@ module_serdev_device_driver(sam_protocol_driver);
 
 MODULE_ALIAS("serdev:pamir_sam_protocol");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Pamir AI Incorporated.");
+MODULE_AUTHOR("PamirAI Incorporated.");
 MODULE_DESCRIPTION("PamirAI Signal Aggregation Module (SAM)");

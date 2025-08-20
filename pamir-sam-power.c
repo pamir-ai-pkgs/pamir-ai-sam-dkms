@@ -4,7 +4,7 @@
  *
  * Power management functionality.
  *
- * Copyright (C) 2025 Pamir AI Incorporated - http://www.pamir.ai/
+ * Copyright (C) 2025 PamirAI Incorporated - http://www.pamir.ai/
  */
 #include "pamir-sam.h"
 #include <linux/power_supply.h>

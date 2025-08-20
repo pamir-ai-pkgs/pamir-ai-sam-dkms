@@ -2,13 +2,11 @@
 /*
  * Device Tree overlay for Pamir AI SAM Module
  *
- * Copyright (C) 2025 Pamir AI Incorporated.
+ * Copyright (C) 2025 PamirAI Incorporated.
  */
 
 /dts-v1/;
 /plugin/;
-
-/* Using numeric values directly since #define not supported in overlays */
 
 / {
 	compatible = "brcm,bcm2712";

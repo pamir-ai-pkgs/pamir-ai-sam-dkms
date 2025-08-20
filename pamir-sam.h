@@ -2,7 +2,7 @@
 /*
  * Pamir AI Signal Aggregation Module (SAM) Header
  *
- * Copyright (C) 2025 Pamir AI Incorporated - http://www.pamir.ai/
+ * Copyright (C) 2025 PamirAI Incorporated - http://www.pamir.ai/
  */
 #ifndef _PAMIR_SAM_H
 #define _PAMIR_SAM_H

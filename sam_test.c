@@ -16,7 +16,7 @@
  * - Protocol error injection and recovery testing
  * - Interactive menu system and command-line interface
  * 
- * Copyright (C) 2025 Pamir AI Incorporated
+ * Copyright (C) 2025 PamirAI Incorporated
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
