@@ -27,7 +27,7 @@ static int send_sam_version(struct sam_protocol_data *priv)
 	packet.data[0] = PAMIR_SAM_VERSION_MAJOR;
 	packet.data[1] = PAMIR_SAM_VERSION_MINOR;
 
-	debug_uart_print(&priv->serdev->dev, "Sending SAM version: %d.%d.%d", 
+	debug_uart_print(&priv->serdev->dev, "Sending SAM version: %d.%d.%d",
 			  PAMIR_SAM_VERSION_MAJOR, PAMIR_SAM_VERSION_MINOR, PAMIR_SAM_VERSION_PATCH);
 
 	ret = send_packet(priv, &packet);
@@ -50,7 +50,7 @@ static int send_sam_version(struct sam_protocol_data *priv)
 	dev_dbg(&priv->serdev->dev, "SAM driver version sent: %d.%d.%d\n",
 		 PAMIR_SAM_VERSION_MAJOR, PAMIR_SAM_VERSION_MINOR, PAMIR_SAM_VERSION_PATCH);
 	debug_uart_print(&priv->serdev->dev, "Version exchange completed");
-	
+
 	return 0;
 }
 
@@ -68,9 +68,8 @@ static int send_display_release(struct sam_protocol_data *priv)
 	struct sam_protocol_packet packet;
 	int ret;
 
-	if (!priv || !priv->serdev) {
+	if (!priv || !priv->serdev)
 		return -ENODEV;
-	}
 
 	/* Send display release command */
 	packet.type_flags = TYPE_DISPLAY | 0x07; /* Display release command */
@@ -103,9 +102,8 @@ int send_boot_notification(struct sam_protocol_data *priv)
 	struct sam_protocol_packet packet;
 	int ret;
 
-	if (!priv || !priv->serdev) {
+	if (!priv || !priv->serdev)
 		return -ENODEV;
-	}
 
 	debug_uart_print(&priv->serdev->dev, "Starting boot notification sequence");
 
@@ -117,7 +115,7 @@ int send_boot_notification(struct sam_protocol_data *priv)
 	}
 
 	/* Small delay to allow RP2040 to process version info */
-	msleep(10);
+	usleep_range(10000, 15000);
 
 	/* Step 2: Send power state (boot notification) */
 	packet.type_flags = TYPE_POWER | POWER_CMD_SET;
@@ -161,9 +159,8 @@ int sam_reboot_notifier_call(struct notifier_block *nb, unsigned long action, vo
 	uint8_t shutdown_mode = 0;
 	const char *action_name = "unknown";
 
-	if (!priv || !priv->serdev) {
+	if (!priv || !priv->serdev)
 		return NOTIFY_DONE;
-	}
 
 	/* Determine shutdown mode based on reboot action */
 	switch (action) {

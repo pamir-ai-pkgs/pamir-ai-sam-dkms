@@ -46,8 +46,8 @@
 		if (packet) { \
 			dev_info(dev, "[UART-%s] [%02X %02X %02X %02X] len=4", \
 				direction, \
-				((uint8_t*)packet)[0], ((uint8_t*)packet)[1], \
-				((uint8_t*)packet)[2], ((uint8_t*)packet)[3]); \
+				((uint8_t *)packet)[0], ((uint8_t *)packet)[1], \
+				((uint8_t *)packet)[2], ((uint8_t *)packet)[3]); \
 		} \
 	} while (0)
 #define debug_uart_raw(dev, data, len, direction) \
@@ -57,16 +57,19 @@
 			int i, offset = 0; \
 			for (i = 0; i < len && offset < sizeof(hex_str) - 3; i++) { \
 				offset += snprintf(hex_str + offset, sizeof(hex_str) - offset, \
-					"%02X ", ((uint8_t*)data)[i]); \
+					"%02X ", ((uint8_t *)data)[i]); \
 			} \
 			hex_str[offset] = '\0'; \
 			dev_info(dev, "[UART-RAW-%s] [%s] len=%zu", direction, hex_str, len); \
 		} \
 	} while (0)
 #else
-#define debug_uart_print(dev, fmt, args...) do { } while (0)
-#define debug_uart_packet(dev, packet, direction) do { } while (0)
-#define debug_uart_raw(dev, data, len, direction) do { } while (0)
+#define debug_uart_print(dev, fmt, args...) \
+	do { (void)(dev); (void)(fmt); } while (0)
+#define debug_uart_packet(dev, packet, direction) \
+	do { (void)(dev); (void)(packet); (void)(direction); } while (0)
+#define debug_uart_raw(dev, data, len, direction) \
+	do { (void)(dev); (void)(data); (void)(len); (void)(direction); } while (0)
 #endif
 
 /* SAM Driver Versioning - Semantic Versioning */
@@ -275,7 +278,7 @@ struct sam_protocol_data {
 	struct delayed_work power_poll_work;
 	struct notifier_block reboot_notifier;
 	bool boot_notification_sent;
-	
+
 	/* Error recovery */
 	bool recovery_in_progress;
 	int recovery_attempts;
@@ -342,4 +345,4 @@ void cleanup_char_device(struct sam_protocol_data *priv);
 /* Exported globals */
 extern struct sam_protocol_data *g_sam_protocol_data;
 
-#endif /* _PAMIR_SAM_H */ 
+#endif /* _PAMIR_SAM_H */

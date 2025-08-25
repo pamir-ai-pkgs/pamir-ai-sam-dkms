@@ -10,7 +10,7 @@
 #include "pamir-sam.h"
 
 /* Global pointer for LED brightness control access */
-struct sam_protocol_data *g_sam_protocol_data = NULL;
+struct sam_protocol_data *g_sam_protocol_data;
 
 /**
  * sam_protocol_receive_buf() - Process received UART data
@@ -45,7 +45,7 @@ static size_t sam_protocol_receive_buf(struct serdev_device *serdev,
 		/* Store byte in buffer */
 		if (priv->rx_pos < RX_BUF_SIZE) {
 			priv->rx_buf[priv->rx_pos++] = data[i];
-			debug_uart_print(&serdev->dev, "RX byte[%zu]: 0x%02X, buffer pos: %zu", 
+			debug_uart_print(&serdev->dev, "RX byte[%zu]: 0x%02X, buffer pos: %zu",
 					  i, data[i], priv->rx_pos);
 		} else {
 			dev_warn(&serdev->dev, "RX buffer overflow, resetting");
@@ -102,9 +102,9 @@ static void sam_protocol_load_config(struct device_node *node,
 		pr_warn("pamir-sam: Invalid debug level %u, using 3\n", config->debug_level);
 		config->debug_level = 3;
 	}
-	
+
 	if (config->recovery_timeout_ms < 100 || config->recovery_timeout_ms > 30000) {
-		pr_warn("pamir-sam: Invalid recovery timeout %u ms, using 1000\n", 
+		pr_warn("pamir-sam: Invalid recovery timeout %u ms, using 1000\n",
 			config->recovery_timeout_ms);
 		config->recovery_timeout_ms = 1000;
 	}
@@ -158,7 +158,7 @@ static int sam_protocol_probe(struct serdev_device *serdev)
 	mutex_init(&priv->tx_mutex);
 	mutex_init(&priv->power_metrics_mutex);
 	mutex_init(&priv->debug_mutex);
-	
+
 	/* Initialize power metrics */
 	priv->power_metrics.metrics_valid = false;
 	priv->power_metrics.last_update = 0;
@@ -204,14 +204,13 @@ static int sam_protocol_probe(struct serdev_device *serdev)
 
 	/* Configure UART parameters */
 	ret = serdev_device_set_baudrate(serdev, 115200);
-	if (ret != 115200) {
+	if (ret != 115200)
 		dev_warn(&serdev->dev, "Baudrate set to %d instead of requested 115200", ret);
-	} else {
+	else
 		debug_uart_print(&serdev->dev, "Baudrate successfully set to 115200");
-	}
 
 	serdev_device_set_flow_control(serdev, false);
-	
+
 	debug_uart_print(&serdev->dev, "UART initialized - Baud: 115200, Flow control: disabled");
 	debug_uart_print(&serdev->dev, "RX callback registered: %p", sam_protocol_receive_buf);
 	debug_uart_print(&serdev->dev, "Waiting for RP2040 communication...");

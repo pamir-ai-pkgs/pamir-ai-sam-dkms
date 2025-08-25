@@ -26,7 +26,7 @@ void process_power_packet(struct sam_protocol_data *priv,
 	uint16_t value;
 
 	dev_dbg(&priv->serdev->dev,
-	 "Power packet - Cmd: 0x%02x, Data: 0x%02x 0x%02x\n", 
+	 "Power packet - Cmd: 0x%02x, Data: 0x%02x 0x%02x\n",
 	 cmd, data1, data2);
 
 	/* Handle commands */
@@ -82,7 +82,7 @@ void process_power_packet(struct sam_protocol_data *priv,
 		priv->power_metrics.last_update = jiffies;
 		priv->power_metrics.metrics_valid = true;
 		mutex_unlock(&priv->power_metrics_mutex);
-		dev_dbg(&priv->serdev->dev, "Power metrics: Battery = %u%%\n", 
+		dev_dbg(&priv->serdev->dev, "Power metrics: Battery = %u%%\n",
 			priv->power_metrics.battery_percent);
 		break;
 
@@ -94,8 +94,8 @@ void process_power_packet(struct sam_protocol_data *priv,
 		priv->power_metrics.last_update = jiffies;
 		priv->power_metrics.metrics_valid = true;
 		mutex_unlock(&priv->power_metrics_mutex);
-		dev_dbg(&priv->serdev->dev, "Power metrics: Temperature = %d.%d°C\n", 
-			priv->power_metrics.temperature_dc / 10, 
+		dev_dbg(&priv->serdev->dev, "Power metrics: Temperature = %d.%d°C\n",
+			priv->power_metrics.temperature_dc / 10,
 			abs(priv->power_metrics.temperature_dc % 10));
 		break;
 
@@ -135,9 +135,8 @@ int send_power_metrics_request(struct sam_protocol_data *priv)
 {
 	struct sam_protocol_packet packet;
 
-	if (!priv || !priv->serdev) {
+	if (!priv || !priv->serdev)
 		return -ENODEV;
-	}
 
 	packet.type_flags = TYPE_POWER | POWER_CMD_REQUEST_METRICS;
 	packet.data[0] = 0x00; /* Request all metrics */
@@ -154,25 +153,23 @@ int send_power_metrics_request(struct sam_protocol_data *priv)
  */
 void power_poll_work_handler(struct work_struct *work)
 {
-	struct sam_protocol_data *priv = container_of(work, struct sam_protocol_data, 
+	struct sam_protocol_data *priv = container_of(work, struct sam_protocol_data,
 						      power_poll_work.work);
 	int ret;
 	unsigned long age_ms;
 
-	if (!priv || !priv->serdev) {
+	if (!priv || !priv->serdev)
 		return;
-	}
 
 	/* Check if driver is being removed */
-	if (priv->recovery_in_progress) {
+	if (priv->recovery_in_progress)
 		goto reschedule;
-	}
 
 	/* Send power metrics request */
 	ret = send_power_metrics_request(priv);
 	if (ret) {
 		dev_warn(&priv->serdev->dev, "Failed to request power metrics: %d\n", ret);
-		
+
 		/* Mark metrics as potentially stale */
 		mutex_lock(&priv->power_metrics_mutex);
 		if (priv->power_metrics.metrics_valid) {
@@ -201,18 +198,16 @@ static ssize_t current_ma_show(struct device *dev, struct device_attribute *attr
 	int16_t current_ma;
 	bool valid;
 
-	if (!priv) {
+	if (!priv)
 		return snprintf(buf, PAGE_SIZE, "driver not available\n");
-	}
 
 	mutex_lock(&priv->power_metrics_mutex);
 	current_ma = priv->power_metrics.current_ma;
 	valid = priv->power_metrics.metrics_valid;
 	mutex_unlock(&priv->power_metrics_mutex);
 
-	if (!valid) {
+	if (!valid)
 		return snprintf(buf, PAGE_SIZE, "data not available\n");
-	}
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", current_ma);
 }
@@ -223,18 +218,16 @@ static ssize_t battery_percent_show(struct device *dev, struct device_attribute 
 	uint16_t battery_percent;
 	bool valid;
 
-	if (!priv) {
+	if (!priv)
 		return snprintf(buf, PAGE_SIZE, "driver not available\n");
-	}
 
 	mutex_lock(&priv->power_metrics_mutex);
 	battery_percent = priv->power_metrics.battery_percent;
 	valid = priv->power_metrics.metrics_valid;
 	mutex_unlock(&priv->power_metrics_mutex);
 
-	if (!valid) {
+	if (!valid)
 		return snprintf(buf, PAGE_SIZE, "data not available\n");
-	}
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", battery_percent);
 }
@@ -245,18 +238,16 @@ static ssize_t temperature_show(struct device *dev, struct device_attribute *att
 	int16_t temperature_dc;
 	bool valid;
 
-	if (!priv) {
+	if (!priv)
 		return snprintf(buf, PAGE_SIZE, "driver not available\n");
-	}
 
 	mutex_lock(&priv->power_metrics_mutex);
 	temperature_dc = priv->power_metrics.temperature_dc;
 	valid = priv->power_metrics.metrics_valid;
 	mutex_unlock(&priv->power_metrics_mutex);
 
-	if (!valid) {
+	if (!valid)
 		return snprintf(buf, PAGE_SIZE, "data not available\n");
-	}
 
 	return snprintf(buf, PAGE_SIZE, "%d.%d\n", temperature_dc / 10, abs(temperature_dc % 10));
 }
@@ -267,18 +258,16 @@ static ssize_t voltage_mv_show(struct device *dev, struct device_attribute *attr
 	uint16_t voltage_mv;
 	bool valid;
 
-	if (!priv) {
+	if (!priv)
 		return snprintf(buf, PAGE_SIZE, "driver not available\n");
-	}
 
 	mutex_lock(&priv->power_metrics_mutex);
 	voltage_mv = priv->power_metrics.voltage_mv;
 	valid = priv->power_metrics.metrics_valid;
 	mutex_unlock(&priv->power_metrics_mutex);
 
-	if (!valid) {
+	if (!valid)
 		return snprintf(buf, PAGE_SIZE, "data not available\n");
-	}
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", voltage_mv);
 }
@@ -289,18 +278,16 @@ static ssize_t metrics_last_update_show(struct device *dev, struct device_attrib
 	unsigned long last_update, age_ms;
 	bool valid;
 
-	if (!priv) {
+	if (!priv)
 		return snprintf(buf, PAGE_SIZE, "driver not available\n");
-	}
 
 	mutex_lock(&priv->power_metrics_mutex);
 	last_update = priv->power_metrics.last_update;
 	valid = priv->power_metrics.metrics_valid;
 	mutex_unlock(&priv->power_metrics_mutex);
 
-	if (!valid || last_update == 0) {
+	if (!valid || last_update == 0)
 		return snprintf(buf, PAGE_SIZE, "never\n");
-	}
 
 	age_ms = jiffies_to_msecs(jiffies - last_update);
 	return snprintf(buf, PAGE_SIZE, "%lu ms ago\n", age_ms);
@@ -338,9 +325,8 @@ int setup_power_metrics_sysfs(struct sam_protocol_data *priv)
 {
 	int ret;
 
-	if (!priv || !priv->serdev) {
+	if (!priv || !priv->serdev)
 		return -ENODEV;
-	}
 
 	ret = sysfs_create_group(&priv->serdev->dev.kobj, &power_metrics_group);
 	if (ret) {
@@ -360,9 +346,8 @@ int setup_power_metrics_sysfs(struct sam_protocol_data *priv)
  */
 void cleanup_power_metrics_sysfs(struct sam_protocol_data *priv)
 {
-	if (!priv || !priv->serdev) {
+	if (!priv || !priv->serdev)
 		return;
-	}
 
 	sysfs_remove_group(&priv->serdev->dev.kobj, &power_metrics_group);
 	dev_dbg(&priv->serdev->dev, "Power metrics sysfs interface removed\n");
@@ -378,9 +363,8 @@ static int pamir_battery_get_property(struct power_supply *psy,
 	struct sam_protocol_data *priv = g_sam_protocol_data;
 	bool valid;
 
-	if (!priv) {
+	if (!priv)
 		return -ENODEV;
-	}
 
 	mutex_lock(&priv->power_metrics_mutex);
 	valid = priv->power_metrics.metrics_valid;
@@ -451,9 +435,8 @@ int setup_power_supply(struct sam_protocol_data *priv)
 {
 	struct power_supply_config psy_cfg = {};
 
-	if (!priv || !priv->serdev) {
+	if (!priv || !priv->serdev)
 		return -ENODEV;
-	}
 
 	psy_cfg.drv_data = priv;
 

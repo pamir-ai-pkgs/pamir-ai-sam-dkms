@@ -20,14 +20,14 @@
 static uint8_t calculate_crc8(const uint8_t *data, size_t len)
 {
 	uint8_t crc = 0x00;
+
 	for (size_t i = 0; i < len; i++) {
 		crc ^= data[i];
 		for (int j = 0; j < 8; j++) {
-			if (crc & 0x80) {
+			if (crc & 0x80)
 				crc = (crc << 1) ^ 0x07;
-			} else {
+			else
 				crc <<= 1;
-			}
 		}
 	}
 	return crc;
@@ -83,11 +83,10 @@ int send_packet(struct sam_protocol_data *priv,
 			       PACKET_SIZE, MAX_SCHEDULE_TIMEOUT);
 	mutex_unlock(&priv->tx_mutex);
 
-	if (ret == PACKET_SIZE) {
+	if (ret == PACKET_SIZE)
 		debug_uart_print(&priv->serdev->dev, "Packet sent successfully");
-	} else {
+	else
 		debug_uart_print(&priv->serdev->dev, "Packet send failed: %d", ret);
-	}
 
 	return (ret == PACKET_SIZE) ? 0 : -EIO;
 }
@@ -167,7 +166,7 @@ void process_packet(struct sam_protocol_data *priv,
 			"Invalid checksum: got 0x%02x, expected 0x%02x\n",
 			packet->checksum, calculate_checksum(packet));
 		debug_uart_print(&priv->serdev->dev, "Checksum validation failed");
-		
+
 		/* Trigger protocol recovery on checksum error */
 		sam_protocol_recovery(priv);
 		return;
@@ -229,7 +228,7 @@ void process_packet(struct sam_protocol_data *priv,
 		debug_uart_print(&priv->serdev->dev, "Sending ACK for packet type: 0x%02X", type);
 		send_system_command(priv, SYSTEM_PING, 0x00, 0x00);
 	}
-	
+
 	/* Reset recovery attempts on successful packet processing */
 	if (priv->recovery_in_progress) {
 		priv->recovery_in_progress = false;
@@ -247,9 +246,8 @@ void process_packet(struct sam_protocol_data *priv,
  */
 void sam_protocol_flush_rx_buffer(struct sam_protocol_data *priv)
 {
-	if (!priv) {
+	if (!priv)
 		return;
-	}
 
 	priv->rx_pos = 0;
 	memset(priv->rx_buf, 0, sizeof(priv->rx_buf));
@@ -268,14 +266,12 @@ void sam_protocol_recovery(struct sam_protocol_data *priv)
 	unsigned long backoff_ms;
 	int ret;
 
-	if (!priv || !priv->serdev) {
+	if (!priv || !priv->serdev)
 		return;
-	}
 
 	/* Avoid recursive recovery attempts */
-	if (priv->recovery_in_progress) {
+	if (priv->recovery_in_progress)
 		return;
-	}
 
 	priv->recovery_in_progress = true;
 	priv->recovery_attempts++;
@@ -297,7 +293,7 @@ void sam_protocol_recovery(struct sam_protocol_data *priv)
 
 	/* Calculate exponential backoff delay */
 	backoff_ms = RECOVERY_BACKOFF_MS * (1 << (priv->recovery_attempts - 1));
-	backoff_ms = min(backoff_ms, (unsigned long)priv->config.recovery_timeout_ms);
+	backoff_ms = min_t(unsigned long, backoff_ms, priv->config.recovery_timeout_ms);
 
 	dev_dbg(&priv->serdev->dev, "Recovery backoff: %lu ms\n", backoff_ms);
 	msleep(backoff_ms);

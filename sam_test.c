@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * Pamir AI Signal Aggregation Module (SAM) Userspace Testing Program
- * 
+ *
  * This program provides comprehensive testing capabilities for the SAM kernel driver,
- * supporting granular packet-level testing for all message types defined in the 
+ * supporting granular packet-level testing for all message types defined in the
  * SAM protocol specification v0.2.0.
- * 
+ *
  * Features:
  * - Direct packet communication via /dev/pamir-sam character device
  * - Individual testing of all 8 message types and their variants
@@ -15,9 +16,8 @@
  * - Power metrics monitoring
  * - Protocol error injection and recovery testing
  * - Interactive menu system and command-line interface
- * 
+ *
  * Copyright (C) 2025 PamirAI Incorporated
- * SPDX-License-Identifier: GPL-2.0-only
  */
 
 #include <stdio.h>
@@ -162,7 +162,7 @@ struct sam_packet {
 	uint8_t type_flags;
 	uint8_t data[2];
 	uint8_t checksum;
-} __attribute__((packed));
+} __packed;
 
 /**
  * Test statistics structure
@@ -186,14 +186,14 @@ struct test_context {
 	int verbose;
 	int interactive;
 	struct test_stats stats;
-	volatile int running;
+	int running;
 };
 
 static struct test_context g_ctx = { 0 };
 
 /**
  * Calculate CRC8 checksum using polynomial 0x07 - SAM-TRM-v0.2.0
- * 
+ *
  * @param data: Pointer to data buffer
  * @param len: Length of data buffer
  * @return: Calculated CRC8 checksum
@@ -205,11 +205,10 @@ static uint8_t calculate_crc8(const uint8_t *data, size_t len)
 	for (size_t i = 0; i < len; i++) {
 		crc ^= data[i];
 		for (int j = 0; j < 8; j++) {
-			if (crc & 0x80) {
+			if (crc & 0x80)
 				crc = (crc << 1) ^ 0x07; /* Polynomial 0x07 */
-			} else {
+			else
 				crc <<= 1;
-			}
 		}
 	}
 
@@ -218,7 +217,7 @@ static uint8_t calculate_crc8(const uint8_t *data, size_t len)
 
 /**
  * Calculate CRC8 checksum for SAM packet
- * 
+ *
  * @param packet: Pointer to SAM packet
  * @return: Calculated checksum
  */
@@ -229,19 +228,20 @@ static uint8_t calculate_packet_checksum(const struct sam_packet *packet)
 
 /**
  * Verify checksum of received SAM packet
- * 
+ *
  * @param packet: Pointer to SAM packet
  * @return: true if checksum is valid, false otherwise
  */
 static bool verify_checksum(const struct sam_packet *packet)
 {
 	uint8_t expected = calculate_packet_checksum(packet);
+
 	return packet->checksum == expected;
 }
 
 /**
  * Create a SAM packet with automatic CRC8 checksum calculation
- * 
+ *
  * @param packet: Pointer to packet structure to fill
  * @param type_flags: Message type and flags
  * @param data0: First data byte
@@ -258,7 +258,7 @@ static void create_packet(struct sam_packet *packet, uint8_t type_flags,
 
 /**
  * Print packet in human-readable format
- * 
+ *
  * @param packet: Pointer to packet
  * @param direction: "TX" or "RX"
  */
@@ -302,7 +302,7 @@ static void print_packet(const struct sam_packet *packet, const char *direction)
 
 /**
  * Send packet to SAM device
- * 
+ *
  * @param packet: Pointer to packet to send
  * @return: 0 on success, -1 on error
  */
@@ -318,9 +318,8 @@ static int send_packet(const struct sam_packet *packet)
 
 	g_ctx.stats.packets_sent++;
 
-	if (g_ctx.verbose) {
+	if (g_ctx.verbose)
 		print_packet(packet, "TX");
-	}
 
 	usleep(RP2040_PACKET_DELAY_MS * 1000);
 	return 0;
@@ -328,7 +327,7 @@ static int send_packet(const struct sam_packet *packet)
 
 /**
  * Receive packet from SAM device with timeout
- * 
+ *
  * @param packet: Pointer to packet structure to fill
  * @param timeout_ms: Timeout in milliseconds
  * @return: 0 on success, -1 on error/timeout
@@ -348,9 +347,8 @@ static int receive_packet(struct sam_packet *packet, int timeout_ms)
 	ret = select(g_ctx.sam_fd + 1, &read_fds, NULL, NULL, &timeout);
 
 	if (ret == 0) {
-		if (g_ctx.verbose) {
+		if (g_ctx.verbose)
 			printf("Timeout waiting for response\n");
-		}
 		g_ctx.stats.timeout_errors++;
 		return -1;
 	}
@@ -378,16 +376,15 @@ static int receive_packet(struct sam_packet *packet, int timeout_ms)
 		return -1;
 	}
 
-	if (g_ctx.verbose) {
+	if (g_ctx.verbose)
 		print_packet(packet, "RX");
-	}
 
 	return 0;
 }
 
 /**
  * Send packet and wait for response
- * 
+ *
  * @param tx_packet: Packet to send
  * @param rx_packet: Buffer for response packet
  * @return: 0 on success, -1 on error
@@ -395,9 +392,8 @@ static int receive_packet(struct sam_packet *packet, int timeout_ms)
 static int send_and_receive(const struct sam_packet *tx_packet,
 			    struct sam_packet *rx_packet)
 {
-	if (send_packet(tx_packet) < 0) {
+	if (send_packet(tx_packet) < 0)
 		return -1;
-	}
 
 	usleep(RP2040_RESPONSE_DELAY_MS * 1000);
 	return receive_packet(rx_packet, MAX_RESPONSE_WAIT_MS);
@@ -455,6 +451,7 @@ static int send_led_red_static(uint8_t led_id)
 	struct sam_packet packet;
 	uint8_t data0 = (15 << 4) | 0; // R=15, G=0
 	uint8_t data1 = (0 << 4) | 0; // B=0, Mode=Static, Timing=100ms
+
 	create_packet(&packet, TYPE_LED | (led_id & 0x0F), data0, data1);
 	printf("Sending: LED %d Red Static\n", led_id);
 	return send_packet(&packet);
@@ -465,6 +462,7 @@ static int send_led_green_static(uint8_t led_id)
 	struct sam_packet packet;
 	uint8_t data0 = (0 << 4) | 15; // R=0, G=15
 	uint8_t data1 = (0 << 4) | 0; // B=0, Mode=Static, Timing=100ms
+
 	create_packet(&packet, TYPE_LED | (led_id & 0x0F), data0, data1);
 	printf("Sending: LED %d Green Static\n", led_id);
 	return send_packet(&packet);
@@ -475,6 +473,7 @@ static int send_led_blue_static(uint8_t led_id)
 	struct sam_packet packet;
 	uint8_t data0 = (0 << 4) | 0; // R=0, G=0
 	uint8_t data1 = (15 << 4) | 0; // B=15, Mode=Static, Timing=100ms
+
 	create_packet(&packet, TYPE_LED | (led_id & 0x0F), data0, data1);
 	printf("Sending: LED %d Blue Static\n", led_id);
 	return send_packet(&packet);
@@ -485,6 +484,7 @@ static int send_led_white_static(uint8_t led_id)
 	struct sam_packet packet;
 	uint8_t data0 = (15 << 4) | 15; // R=15, G=15
 	uint8_t data1 = (15 << 4) | 0; // B=15, Mode=Static, Timing=100ms
+
 	create_packet(&packet, TYPE_LED | (led_id & 0x0F), data0, data1);
 	printf("Sending: LED %d White Static\n", led_id);
 	return send_packet(&packet);
@@ -495,6 +495,7 @@ static int send_led_off(uint8_t led_id)
 	struct sam_packet packet;
 	uint8_t data0 = 0; // R=0, G=0
 	uint8_t data1 = 0; // B=0, Mode=Static, Timing=100ms
+
 	create_packet(&packet, TYPE_LED | (led_id & 0x0F), data0, data1);
 	printf("Sending: LED %d Off\n", led_id);
 	return send_packet(&packet);
@@ -527,6 +528,7 @@ static int send_led_rainbow(uint8_t led_id, uint8_t timing)
 	struct sam_packet packet;
 	uint8_t data0 = 0; // Ignored for rainbow
 	uint8_t data1 = (3 << 2) | (timing & 0x03); // Mode=Rainbow, Timing
+
 	create_packet(&packet, TYPE_LED | (led_id & 0x0F), data0, data1);
 	printf("Sending: LED %d Rainbow (timing=%d)\n", led_id, timing);
 	return send_packet(&packet);
@@ -537,6 +539,7 @@ static int send_led_broadcast_off(void)
 	struct sam_packet packet;
 	uint8_t data0 = 0; // R=0, G=0
 	uint8_t data1 = 0; // B=0, Mode=Static, Timing=100ms
+
 	create_packet(&packet, TYPE_LED | 0x0F, data0,
 		      data1); // LED ID 15 = broadcast
 	printf("Sending: All LEDs Off (Broadcast)\n");
@@ -547,6 +550,7 @@ static int send_led_broadcast_off(void)
 static int send_power_query(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_POWER | POWER_CMD_QUERY, 0x00, 0x00);
 	printf("Sending: Power Query\n");
 	return send_packet(&packet);
@@ -555,6 +559,7 @@ static int send_power_query(void)
 static int send_power_set_running(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_POWER | POWER_CMD_SET, POWER_STATE_RUNNING,
 		      0x00);
 	printf("Sending: Power Set Running\n");
@@ -564,6 +569,7 @@ static int send_power_set_running(void)
 static int send_power_set_sleep(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_POWER | POWER_CMD_SET, POWER_STATE_SLEEP,
 		      0x00);
 	printf("Sending: Power Set Sleep\n");
@@ -573,6 +579,7 @@ static int send_power_set_sleep(void)
 static int send_power_sleep_30s(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_POWER | POWER_CMD_SLEEP, 30,
 		      0x01); // 30s, wake on button
 	printf("Sending: Power Sleep 30s (wake on button)\n");
@@ -582,6 +589,7 @@ static int send_power_sleep_30s(void)
 static int send_power_shutdown_normal(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_POWER | POWER_CMD_SHUTDOWN, 0x00,
 		      0x05); // Normal, user initiated
 	printf("Sending: Power Shutdown Normal (user initiated)\n");
@@ -591,6 +599,7 @@ static int send_power_shutdown_normal(void)
 static int send_power_shutdown_emergency(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_POWER | POWER_CMD_SHUTDOWN, 0x01,
 		      0x01); // Emergency, system critical
 	printf("Sending: Power Shutdown Emergency (system critical)\n");
@@ -600,6 +609,7 @@ static int send_power_shutdown_emergency(void)
 static int send_power_shutdown_reboot(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_POWER | POWER_CMD_SHUTDOWN, 0x02,
 		      0x03); // Reboot, maintenance
 	printf("Sending: Power Shutdown Reboot (maintenance)\n");
@@ -609,6 +619,7 @@ static int send_power_shutdown_reboot(void)
 static int send_power_request_all_metrics(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_POWER | POWER_CMD_REQUEST_METRICS, 0x00,
 		      0x00); // All metrics
 	printf("Sending: Power Request All Metrics\n");
@@ -618,6 +629,7 @@ static int send_power_request_all_metrics(void)
 static int send_power_request_current_only(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_POWER | POWER_CMD_REQUEST_METRICS, 0x01,
 		      0x00); // Current only
 	printf("Sending: Power Request Current Only\n");
@@ -627,6 +639,7 @@ static int send_power_request_current_only(void)
 static int send_power_request_battery_only(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_POWER | POWER_CMD_REQUEST_METRICS, 0x02,
 		      0x00); // Battery only
 	printf("Sending: Power Request Battery Only\n");
@@ -637,6 +650,7 @@ static int send_power_request_battery_only(void)
 static int send_display_query(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DISPLAY | DISPLAY_CMD_QUERY, 0x00, 0x00);
 	printf("Sending: Display Query\n");
 	return send_packet(&packet);
@@ -645,6 +659,7 @@ static int send_display_query(void)
 static int send_display_init(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DISPLAY | DISPLAY_CMD_INIT, 0x00, 0x00);
 	printf("Sending: Display Init\n");
 	return send_packet(&packet);
@@ -653,6 +668,7 @@ static int send_display_init(void)
 static int send_display_clear_white_full(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DISPLAY | DISPLAY_CMD_CLEAR, 0x00,
 		      0x00); // White, full refresh
 	printf("Sending: Display Clear White (Full Refresh)\n");
@@ -662,6 +678,7 @@ static int send_display_clear_white_full(void)
 static int send_display_clear_white_partial(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DISPLAY | DISPLAY_CMD_CLEAR, 0x00,
 		      0x01); // White, partial refresh
 	printf("Sending: Display Clear White (Partial Refresh)\n");
@@ -671,6 +688,7 @@ static int send_display_clear_white_partial(void)
 static int send_display_clear_black_full(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DISPLAY | DISPLAY_CMD_CLEAR, 0xFF,
 		      0x00); // Black, full refresh
 	printf("Sending: Display Clear Black (Full Refresh)\n");
@@ -680,6 +698,7 @@ static int send_display_clear_black_full(void)
 static int send_display_refresh_full(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DISPLAY | DISPLAY_CMD_REFRESH, 0x00,
 		      0x00); // Full refresh
 	printf("Sending: Display Refresh Full\n");
@@ -689,6 +708,7 @@ static int send_display_refresh_full(void)
 static int send_display_refresh_partial(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DISPLAY | DISPLAY_CMD_REFRESH, 0x01,
 		      0x00); // Partial refresh
 	printf("Sending: Display Refresh Partial\n");
@@ -698,6 +718,7 @@ static int send_display_refresh_partial(void)
 static int send_display_sleep(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DISPLAY | DISPLAY_CMD_SLEEP, 0x00, 0x00);
 	printf("Sending: Display Sleep\n");
 	return send_packet(&packet);
@@ -706,6 +727,7 @@ static int send_display_sleep(void)
 static int send_display_wake(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DISPLAY | DISPLAY_CMD_WAKE, 0x00, 0x00);
 	printf("Sending: Display Wake\n");
 	return send_packet(&packet);
@@ -714,6 +736,7 @@ static int send_display_wake(void)
 static int send_display_release_control(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DISPLAY | DISPLAY_CMD_RELEASE, 0xFF,
 		      0x00); // Release signal
 	printf("Sending: Display Release Control (Boot Handover)\n");
@@ -723,6 +746,7 @@ static int send_display_release_control(void)
 static int send_display_acquire_control(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DISPLAY | DISPLAY_CMD_ACQUIRE, 0x01,
 		      0x00); // Acquire from host
 	printf("Sending: Display Acquire Control\n");
@@ -733,6 +757,7 @@ static int send_display_acquire_control(void)
 static int send_system_ping(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_SYSTEM | SYSTEM_PING, 0x00, 0x00);
 	printf("Sending: System Ping\n");
 	return send_packet(&packet);
@@ -741,6 +766,7 @@ static int send_system_ping(void)
 static int send_system_reset_soft(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_SYSTEM | SYSTEM_RESET, 0x00,
 		      0x00); // Soft reset
 	printf("Sending: System Reset (Soft)\n");
@@ -750,6 +776,7 @@ static int send_system_reset_soft(void)
 static int send_system_reset_hard(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_SYSTEM | SYSTEM_RESET, 0x01,
 		      0x00); // Hard reset
 	printf("Sending: System Reset (Hard)\n");
@@ -759,6 +786,7 @@ static int send_system_reset_hard(void)
 static int send_system_version_query(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_SYSTEM | SYSTEM_VERSION, 0x00,
 		      0x00); // Query version
 	printf("Sending: System Version Query\n");
@@ -768,6 +796,7 @@ static int send_system_version_query(void)
 static int send_system_status_query(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_SYSTEM | SYSTEM_STATUS, 0x01,
 		      0x00); // General status
 	printf("Sending: System Status Query\n");
@@ -777,6 +806,7 @@ static int send_system_status_query(void)
 static int send_system_config_debug_level(uint8_t level)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_SYSTEM | SYSTEM_CONFIG, 0x01,
 		      level & 0x03); // Debug level
 	printf("Sending: System Config Debug Level %d\n", level);
@@ -787,6 +817,7 @@ static int send_system_sync_time(void)
 {
 	struct sam_packet packet;
 	uint32_t timestamp = time(NULL);
+
 	create_packet(&packet, TYPE_SYSTEM | SYSTEM_SYNC,
 		      (timestamp >> 8) & 0xFF, timestamp & 0xFF);
 	printf("Sending: System Sync Time\n");
@@ -796,6 +827,7 @@ static int send_system_sync_time(void)
 static int send_system_capabilities_query(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_SYSTEM | SYSTEM_CAPABILITIES, 0x00, 0x00);
 	printf("Sending: System Capabilities Query\n");
 	return send_packet(&packet);
@@ -805,6 +837,7 @@ static int send_system_capabilities_query(void)
 static int send_debug_system_boot_complete(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DEBUG_CODE | DEBUG_CAT_SYSTEM, 0x01,
 		      0x02); // Boot complete, stage 2
 	printf("Sending: Debug System Boot Complete\n");
@@ -814,6 +847,7 @@ static int send_debug_system_boot_complete(void)
 static int send_debug_error_checksum_failed(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DEBUG_CODE | DEBUG_CAT_ERROR, 0xFE,
 		      0x02); // Checksum error
 	printf("Sending: Debug Error Checksum Failed\n");
@@ -823,6 +857,7 @@ static int send_debug_error_checksum_failed(void)
 static int send_debug_button_up_pressed(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DEBUG_CODE | DEBUG_CAT_BUTTON, 0x10,
 		      BTN_UP_MASK); // UP pressed
 	printf("Sending: Debug Button UP Pressed\n");
@@ -832,6 +867,7 @@ static int send_debug_button_up_pressed(void)
 static int send_debug_led_animation_complete(uint8_t led_id)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DEBUG_CODE | DEBUG_CAT_LED, 0x20,
 		      led_id); // Animation complete
 	printf("Sending: Debug LED %d Animation Complete\n", led_id);
@@ -841,6 +877,7 @@ static int send_debug_led_animation_complete(uint8_t led_id)
 static int send_debug_power_state_change(uint8_t new_state)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DEBUG_CODE | DEBUG_CAT_POWER, 0x30,
 		      new_state); // State change
 	printf("Sending: Debug Power State Change to %d\n", new_state);
@@ -850,6 +887,7 @@ static int send_debug_power_state_change(uint8_t new_state)
 static int send_debug_display_refresh_start(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DEBUG_CODE | DEBUG_CAT_DISPLAY, 0x40,
 		      0x00); // Refresh start
 	printf("Sending: Debug Display Refresh Start\n");
@@ -859,6 +897,7 @@ static int send_debug_display_refresh_start(void)
 static int send_debug_comm_packet_received(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DEBUG_CODE | DEBUG_CAT_COMM, 0x50,
 		      0x01); // Packet RX
 	printf("Sending: Debug Comm Packet Received\n");
@@ -868,6 +907,7 @@ static int send_debug_comm_packet_received(void)
 static int send_debug_performance_memory_usage(uint8_t percentage)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DEBUG_CODE | DEBUG_CAT_PERFORMANCE, 0x60,
 		      percentage); // Memory usage
 	printf("Sending: Debug Performance Memory Usage %d%%\n", percentage);
@@ -877,6 +917,7 @@ static int send_debug_performance_memory_usage(uint8_t percentage)
 static int send_debug_text_hello(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_DEBUG_TEXT | DEBUG_TEXT_FIRST, 'H',
 		      'i'); // "Hi"
 	printf("Sending: Debug Text 'Hi'\n");
@@ -886,6 +927,7 @@ static int send_debug_text_hello(void)
 static int send_debug_text_multipacket_start(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet,
 		      TYPE_DEBUG_TEXT | DEBUG_TEXT_FIRST | DEBUG_TEXT_CONTINUE,
 		      'S', 't');
@@ -897,6 +939,7 @@ static int send_debug_text_multipacket_start(void)
 static int send_extended_capabilities(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_EXTENDED | EXT_CAPABILITIES, 0x01, 0x00);
 	printf("Sending: Extended Capabilities\n");
 	return send_packet(&packet);
@@ -905,6 +948,7 @@ static int send_extended_capabilities(void)
 static int send_extended_sensor_query(uint8_t sensor_id)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_EXTENDED | EXT_SENSOR, sensor_id, 0x00);
 	printf("Sending: Extended Sensor Query (ID=%d)\n", sensor_id);
 	return send_packet(&packet);
@@ -913,6 +957,7 @@ static int send_extended_sensor_query(uint8_t sensor_id)
 static int send_extended_actuator_control(uint8_t actuator_id, uint8_t value)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_EXTENDED | EXT_ACTUATOR, actuator_id,
 		      value);
 	printf("Sending: Extended Actuator Control (ID=%d, Value=%d)\n",
@@ -923,6 +968,7 @@ static int send_extended_actuator_control(uint8_t actuator_id, uint8_t value)
 static int send_extended_experimental(void)
 {
 	struct sam_packet packet;
+
 	create_packet(&packet, TYPE_EXTENDED | 0x1F, 0xFF,
 		      0xFF); // Experimental command
 	printf("Sending: Extended Experimental Command\n");
@@ -940,9 +986,8 @@ static int send_individual_packet(const char *packet_name, int led_id)
 	}
 
 	printf("Sending individual packet: %s", packet_name);
-	if (strstr(packet_name, "led-") == packet_name) {
+	if (strstr(packet_name, "led-") == packet_name)
 		printf(" (LED ID: %d)", led_id);
-	}
 	printf("\n");
 
 	/* System Commands */
@@ -1095,12 +1140,11 @@ static int test_individual_buttons(void)
 		       events_received);
 		g_ctx.stats.tests_passed++;
 		return 0;
-	} else {
-		printf("Button monitoring test: No events received (normal if no buttons pressed)\n");
-		g_ctx.stats
-			.tests_passed++; // Not a failure - just no button presses
-		return 0;
 	}
+	printf("Button monitoring test: No events received (normal if no buttons pressed)\n");
+	g_ctx.stats
+		.tests_passed++; // Not a failure - just no button presses
+	return 0;
 }
 
 /**
@@ -1440,6 +1484,7 @@ static int test_individual_power(void)
 	printf("Waiting for metric responses...\n");
 	struct sam_packet rx_packet;
 	int responses = 0;
+
 	for (int i = 0; i < 5; i++) { /* Expect up to 5 responses */
 		if (receive_packet(&rx_packet, 1000) == 0) {
 			responses++;
@@ -1521,7 +1566,7 @@ static int test_individual_display(void)
 }
 
 /**
- * Test all system commands individually  
+ * Test all system commands individually
  */
 static int test_individual_system(void)
 {
@@ -1664,7 +1709,7 @@ static int test_crc8_vectors(void)
 
 	int failed = 0;
 
-	for (int i = 0; i < sizeof(test_vectors) / sizeof(test_vectors[0]);
+	for (int i = 0; i < ARRAY_SIZE(test_vectors);
 	     i++) {
 		uint8_t calculated = calculate_crc8(test_vectors[i].data, 3);
 
@@ -1730,6 +1775,7 @@ static int monitor_input_events(int duration_ms)
 			    sizeof(ev)) {
 				if (ev.type == EV_KEY) {
 					const char *key_name = "UNKNOWN";
+
 					switch (ev.code) {
 					case KEY_UP:
 						key_name = "UP";
@@ -1881,9 +1927,8 @@ static void led_packet_menu(void)
 			printf("Invalid choice.\n");
 			break;
 		}
-		if (choice[0] >= '1' && choice[0] <= '9') {
+		if (choice[0] >= '1' && choice[0] <= '9')
 			usleep(1000000); // 1s delay to see LED effect
-		}
 	}
 }
 
@@ -1933,6 +1978,7 @@ static void power_packet_menu(void)
 			case '5':
 				printf("WARNING: This will send shutdown command! Continue? (y/N): ");
 				char confirm[16];
+
 				if (fgets(confirm, sizeof(confirm), stdin) &&
 				    (confirm[0] == 'y' || confirm[0] == 'Y')) {
 					send_power_shutdown_normal();
@@ -2091,6 +2137,7 @@ static void system_packet_menu(void)
 			case '2':
 				printf("WARNING: This will reset the system! Continue? (y/N): ");
 				char confirm[16];
+
 				if (fgets(confirm, sizeof(confirm), stdin) &&
 				    (confirm[0] == 'y' || confirm[0] == 'Y')) {
 					send_system_reset_soft();
@@ -2262,9 +2309,8 @@ static void extended_packet_menu(void)
 			printf("Invalid choice.\n");
 			break;
 		}
-		if (choice[0] >= '1' && choice[0] <= '6') {
+		if (choice[0] >= '1' && choice[0] <= '6')
 			usleep(200000); // 200ms delay
-		}
 	}
 }
 
@@ -2307,9 +2353,8 @@ static void interactive_menu(void)
 		printf("q. Quit\n");
 		printf("Choice: ");
 
-		if (fgets(choice, sizeof(choice), stdin) == NULL) {
+		if (fgets(choice, sizeof(choice), stdin) == NULL)
 			break;
-		}
 
 		choice[strcspn(choice, "\n")] = 0;
 
@@ -2330,6 +2375,7 @@ static void interactive_menu(void)
 		} else if (strcmp(choice, "17") == 0) {
 			printf("\n=== CUSTOM PACKET TEST ===\n");
 			uint8_t type, data0, data1;
+
 			printf("Enter type_flags (hex): ");
 			scanf("%hhx", &type);
 			printf("Enter data[0] (hex): ");
@@ -2338,6 +2384,7 @@ static void interactive_menu(void)
 			scanf("%hhx", &data1);
 
 			struct sam_packet packet;
+
 			create_packet(&packet, type, data0, data1);
 
 			printf("Created packet: [0x%02X 0x%02X 0x%02X 0x%02X]\n",
@@ -2354,6 +2401,7 @@ static void interactive_menu(void)
 		} else if (strcmp(choice, "18") == 0) {
 			printf("\n=== COMPREHENSIVE TEST SUITE ===\n");
 			int failed = 0;
+
 			failed += test_individual_system();
 			failed += test_individual_leds();
 			failed += test_individual_power();
@@ -2486,13 +2534,11 @@ static int init_test_context(void)
  */
 static void cleanup_test_context(void)
 {
-	if (g_ctx.sam_fd >= 0) {
+	if (g_ctx.sam_fd >= 0)
 		close(g_ctx.sam_fd);
-	}
 
-	if (g_ctx.input_fd >= 0) {
+	if (g_ctx.input_fd >= 0)
 		close(g_ctx.input_fd);
-	}
 }
 
 /**
@@ -2564,13 +2610,11 @@ int main(int argc, char *argv[])
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
 
-	if (test_crc8) {
+	if (test_crc8)
 		return test_crc8_vectors();
-	}
 
-	if (init_test_context() < 0) {
+	if (init_test_context() < 0)
 		return 1;
-	}
 
 	printf("SAM Protocol Testing Program v0.2.0\n");
 	printf("Device: %s\n", device_path);
