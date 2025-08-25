@@ -83,7 +83,7 @@ static void sam_protocol_load_config(struct device_node *node,
 				      struct sam_protocol_config *config)
 {
 	/* Set defaults */
-	config->debug_level = 1;
+	config->debug_level = 0;  /* Production: no debug output by default */
 	config->ack_required = false;
 	config->recovery_timeout_ms = 1000;
 	config->power_poll_interval_ms = 1000;  /* Default 1 second polling */
@@ -264,7 +264,7 @@ static int sam_protocol_probe(struct serdev_device *serdev)
 	/* Send boot notification with version exchange */
 	ret = send_boot_notification(priv);
 	if (ret == 0) {
-		dev_info(&serdev->dev, "Boot notification sent successfully\n");
+		dev_dbg(&serdev->dev, "Boot notification sent successfully\n");
 		priv->boot_notification_sent = true;
 	} else {
 		dev_warn(&serdev->dev, "Boot notification failed: %d\n", ret);
@@ -276,11 +276,11 @@ static int sam_protocol_probe(struct serdev_device *serdev)
 	if (priv->config.power_poll_interval_ms > 0) {
 		schedule_delayed_work(&priv->power_poll_work,
 				      msecs_to_jiffies(priv->config.power_poll_interval_ms));
-		dev_info(&serdev->dev, "Power metrics polling started (interval: %u ms)\n",
+		dev_dbg(&serdev->dev, "Power metrics polling started (interval: %u ms)\n",
 			 priv->config.power_poll_interval_ms);
 	}
 
-	dev_info(&serdev->dev, "SAM protocol driver initialized and ready\n");
+	dev_dbg(&serdev->dev, "SAM protocol driver initialized and ready\n");
 	debug_uart_print(&serdev->dev, "=== SAM Kernel Driver Initialized ===");
 	debug_uart_print(&serdev->dev, "Driver ready for RP2040 communication");
 	return 0;
@@ -296,7 +296,7 @@ static void sam_protocol_remove(struct serdev_device *serdev)
 {
 	struct sam_protocol_data *priv = serdev_device_get_drvdata(serdev);
 
-	dev_info(&serdev->dev, "Removing SAM protocol driver\n");
+	dev_dbg(&serdev->dev, "Removing SAM protocol driver\n");
 
 	/* Cancel power polling work */
 	cancel_delayed_work_sync(&priv->power_poll_work);

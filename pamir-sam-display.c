@@ -31,5 +31,5 @@ void process_display_packet(struct sam_protocol_data *priv,
 	/* Could expose display status through sysfs attributes */
 	/* For example, if we received a display refresh completion notification */
 	if (display_cmd == 0x01 && data1 == 0xFF)
-		dev_info(&priv->serdev->dev, "Display refresh completed\n");
+		dev_dbg(&priv->serdev->dev, "Display refresh completed\n");
 }

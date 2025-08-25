@@ -46,19 +46,19 @@ void process_power_packet(struct sam_protocol_data *priv,
 
 	case POWER_CMD_SET:
 		/* Set power state command */
-		dev_info(&priv->serdev->dev,
+		dev_dbg(&priv->serdev->dev,
 			"Power set command: State=0x%02x, Flags=0x%02x\n", data1, data2);
 		break;
 
 	case POWER_CMD_SLEEP:
 		/* Enter sleep mode command */
-		dev_info(&priv->serdev->dev,
+		dev_dbg(&priv->serdev->dev,
 			"Power sleep command: Delay=0x%02x, Flags=0x%02x\n", data1, data2);
 		break;
 
 	case POWER_CMD_SHUTDOWN:
 		/* Shutdown system command */
-		dev_info(&priv->serdev->dev,
+		dev_dbg(&priv->serdev->dev,
 			"Power shutdown command: Mode=0x%02x, Reason=0x%02x\n", data1, data2);
 		break;
 
@@ -112,7 +112,7 @@ void process_power_packet(struct sam_protocol_data *priv,
 
 	case POWER_CMD_REQUEST_METRICS:
 		/* Request to send all metrics */
-		dev_info(&priv->serdev->dev, "Power metrics request received\n");
+		dev_dbg(&priv->serdev->dev, "Power metrics request received\n");
 		break;
 
 	default:
@@ -348,7 +348,7 @@ int setup_power_metrics_sysfs(struct sam_protocol_data *priv)
 		return ret;
 	}
 
-	dev_info(&priv->serdev->dev, "Power metrics sysfs interface created\n");
+	dev_dbg(&priv->serdev->dev, "Power metrics sysfs interface created\n");
 	return 0;
 }
 
@@ -365,7 +365,7 @@ void cleanup_power_metrics_sysfs(struct sam_protocol_data *priv)
 	}
 
 	sysfs_remove_group(&priv->serdev->dev.kobj, &power_metrics_group);
-	dev_info(&priv->serdev->dev, "Power metrics sysfs interface removed\n");
+	dev_dbg(&priv->serdev->dev, "Power metrics sysfs interface removed\n");
 }
 
 /* Power supply interface */
@@ -466,7 +466,7 @@ int setup_power_supply(struct sam_protocol_data *priv)
 		return PTR_ERR(pamir_battery_psy);
 	}
 
-	dev_info(&priv->serdev->dev, "Power supply interface created at /sys/class/power/pamir_battery\n");
+	dev_dbg(&priv->serdev->dev, "Power supply interface created at /sys/class/power/pamir_battery\n");
 	return 0;
 }
 
@@ -481,6 +481,6 @@ void cleanup_power_supply(struct sam_protocol_data *priv)
 	if (pamir_battery_psy) {
 		power_supply_unregister(pamir_battery_psy);
 		pamir_battery_psy = NULL;
-		dev_info(&priv->serdev->dev, "Power supply interface removed\n");
+		dev_dbg(&priv->serdev->dev, "Power supply interface removed\n");
 	}
 }

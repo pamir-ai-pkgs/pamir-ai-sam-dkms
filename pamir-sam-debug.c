@@ -38,7 +38,7 @@ void process_debug_code_packet(struct sam_protocol_data *priv,
 
 	if (priv->config.debug_level >= 2 ||
 		(priv->config.debug_level >= 1 && category <= 1)) {
-		dev_info(&priv->serdev->dev,
+		dev_dbg(&priv->serdev->dev,
 	   "Debug[%u]: Code=%u Param=%u\n",
 	   category, code, param);
 	}
@@ -75,7 +75,7 @@ void process_debug_text_packet(struct sam_protocol_data *priv,
 	/* Process complete message if this is the last chunk */
 	if (!has_more) {
 		debug_text[text_pos] = '\0';
-		dev_info(&priv->serdev->dev, "Debug text: %s\n", debug_text);
+		dev_dbg(&priv->serdev->dev, "Debug text: %s\n", debug_text);
 		text_pos = 0;
 	}
 }

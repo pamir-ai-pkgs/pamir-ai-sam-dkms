@@ -227,7 +227,6 @@ void sam_led_brightness_set(struct led_classdev *led_cdev, enum led_brightness b
 	uint8_t r, g, b;
 	uint8_t scaled_brightness;
 	int ret;
-	char led_name[32];
 
 	if (!led_cdev) {
 		pr_err("pamir-sam: LED brightness_set: invalid LED device\n");
@@ -772,8 +771,8 @@ static void register_rgb_led_triggers(void)
 			rainbow_rgb_trigger = NULL;
 		}
 	}
-	
-	pr_info("pamir-sam: RGB LED triggers registered\n");
+
+	pr_debug("pamir-sam: RGB LED triggers registered\n");
 }
 
 /**

@@ -35,7 +35,7 @@
 #define DEBUG_QUEUE_SIZE 32
 
 /* Debug configuration */
-#define DEBUG_UART_ENABLED 1  /* Enable detailed UART debugging */
+#define DEBUG_UART_ENABLED 0  /* Disable UART debugging for production */
 
 /* Debug macros for UART operations */
 #if DEBUG_UART_ENABLED

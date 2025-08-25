@@ -234,7 +234,7 @@ void process_packet(struct sam_protocol_data *priv,
 	if (priv->recovery_in_progress) {
 		priv->recovery_in_progress = false;
 		priv->recovery_attempts = 0;
-		dev_info(&priv->serdev->dev, "Protocol recovery successful\n");
+		dev_dbg(&priv->serdev->dev, "Protocol recovery successful\n");
 		debug_uart_print(&priv->serdev->dev, "Protocol recovery completed");
 	}
 }
@@ -299,7 +299,7 @@ void sam_protocol_recovery(struct sam_protocol_data *priv)
 	backoff_ms = RECOVERY_BACKOFF_MS * (1 << (priv->recovery_attempts - 1));
 	backoff_ms = min(backoff_ms, (unsigned long)priv->config.recovery_timeout_ms);
 
-	dev_info(&priv->serdev->dev, "Recovery backoff: %lu ms\n", backoff_ms);
+	dev_dbg(&priv->serdev->dev, "Recovery backoff: %lu ms\n", backoff_ms);
 	msleep(backoff_ms);
 
 	/* Send ping to test communication */
@@ -309,7 +309,7 @@ void sam_protocol_recovery(struct sam_protocol_data *priv)
 		/* Recovery will be marked as failed if no response is received */
 		/* The recovery_in_progress flag will be cleared on next successful packet */
 	} else {
-		dev_info(&priv->serdev->dev, "Recovery ping sent successfully\n");
+		dev_dbg(&priv->serdev->dev, "Recovery ping sent successfully\n");
 	}
 
 	/* Note: recovery_in_progress will be cleared when next valid packet is received */

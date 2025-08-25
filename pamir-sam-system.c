@@ -47,7 +47,7 @@ static int send_sam_version(struct sam_protocol_data *priv)
 		return ret;
 	}
 
-	dev_info(&priv->serdev->dev, "SAM driver version sent: %d.%d.%d\n",
+	dev_dbg(&priv->serdev->dev, "SAM driver version sent: %d.%d.%d\n",
 		 PAMIR_SAM_VERSION_MAJOR, PAMIR_SAM_VERSION_MINOR, PAMIR_SAM_VERSION_PATCH);
 	debug_uart_print(&priv->serdev->dev, "Version exchange completed");
 	
@@ -85,7 +85,7 @@ static int send_display_release(struct sam_protocol_data *priv)
 		return ret;
 	}
 
-	dev_info(&priv->serdev->dev, "Display release signal sent successfully\n");
+	dev_dbg(&priv->serdev->dev, "Display release signal sent successfully\n");
 	return 0;
 }
 
@@ -139,7 +139,7 @@ int send_boot_notification(struct sam_protocol_data *priv)
 		return ret;
 	}
 
-	dev_info(&priv->serdev->dev, "Boot notification completed successfully\n");
+	dev_dbg(&priv->serdev->dev, "Boot notification completed successfully\n");
 	debug_uart_print(&priv->serdev->dev, "Boot notification sequence completed");
 	return 0;
 }
@@ -191,7 +191,7 @@ int sam_reboot_notifier_call(struct notifier_block *nb, unsigned long action, vo
 	packet.data[1] = 0x00; /* No reason code */
 
 	if (send_packet(priv, &packet) == 0) {
-		dev_info(&priv->serdev->dev, "Shutdown notification sent (%s)\n", action_name);
+		dev_dbg(&priv->serdev->dev, "Shutdown notification sent (%s)\n", action_name);
 		/* Give RP2040 time to process the notification */
 		msleep(50);
 	} else {
@@ -226,7 +226,7 @@ void process_system_packet(struct sam_protocol_data *priv,
 
 	case SYSTEM_RESET:
 		/* RP2040 will reset itself - acknowledge */
-		dev_info(&priv->serdev->dev, "RP2040 reset reported\n");
+		dev_dbg(&priv->serdev->dev, "RP2040 reset reported\n");
 		break;
 
 	case SYSTEM_VERSION:
@@ -261,7 +261,7 @@ void process_system_packet(struct sam_protocol_data *priv,
 			send_packet(priv, &response);
 		} else if (command == 0x01) {
 			/* Set configuration */
-			dev_info(&priv->serdev->dev, "RP2040 set configuration: Debug=%u, ACK=%u\n",
+			dev_dbg(&priv->serdev->dev, "RP2040 set configuration: Debug=%u, ACK=%u\n",
 		subcommand & 0x0F, (subcommand >> 4) & 0x01);
 
 			/* Update configuration */
@@ -286,7 +286,7 @@ void process_extended_packet(struct sam_protocol_data *priv,
 	uint8_t data1 = packet->data[0];
 	uint8_t data2 = packet->data[1];
 
-	dev_info(&priv->serdev->dev, "Extended command received: Cmd=0x%02x, Data=0x%02x 0x%02x\n",
+	dev_dbg(&priv->serdev->dev, "Extended command received: Cmd=0x%02x, Data=0x%02x 0x%02x\n",
 	      ext_cmd, data1, data2);
 
 	/* Extended commands are reserved for future use */
