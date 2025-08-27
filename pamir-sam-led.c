@@ -186,8 +186,22 @@ static void rgb_trigger_deactivate(struct led_classdev *led_cdev)
 void process_led_packet(struct sam_protocol_data *priv,
 			const struct sam_protocol_packet *packet)
 {
+	uint8_t led_id;
+
+	/* Input validation */
+	if (!priv || !packet) {
+		pr_warn("pamir-sam: Invalid parameters in process_led_packet\n");
+		return;
+	}
+
 	/* Extract LED ID from type_flags bits 3-0 */
-	uint8_t led_id = packet->type_flags & LED_ID_MASK;
+	led_id = packet->type_flags & LED_ID_MASK;
+
+	/* Validate LED ID is within acceptable range */
+	if (led_id >= MAX_LEDS) {
+		dev_warn(&priv->serdev->dev, "Invalid LED ID %u (max: %u)\n", led_id, MAX_LEDS - 1);
+		return;
+	}
 	uint8_t execute = (packet->type_flags & LED_CMD_EXECUTE) ? 1 : 0;
 
 	/* Extract RGB values from data[0] */

@@ -18,8 +18,22 @@
 void process_button_packet(struct sam_protocol_data *priv,
 			   const struct sam_protocol_packet *packet)
 {
-	struct input_dev *input_dev = priv->input_dev;
-	uint8_t button_state = packet->type_flags & 0x1F;
+	struct input_dev *input_dev;
+	uint8_t button_state;
+
+	/* Input validation */
+	if (!priv || !packet) {
+		pr_warn("pamir-sam: Invalid parameters in process_button_packet\n");
+		return;
+	}
+
+	input_dev = priv->input_dev;
+	if (!input_dev) {
+		dev_warn(&priv->serdev->dev, "Input device not available\n");
+		return;
+	}
+
+	button_state = packet->type_flags & 0x1F;
 
 	input_report_key(input_dev, KEY_UP, button_state & BTN_UP_MASK);
 	input_report_key(input_dev, KEY_DOWN, button_state & BTN_DOWN_MASK);
