@@ -47,14 +47,18 @@ static size_t sam_protocol_receive_buf(struct serdev_device *serdev,
 	debug_uart_print(&serdev->dev, "RX callback triggered: %zu bytes received", count);
 
 	for (i = 0; i < count; i++) {
-		/* Store byte in buffer */
+		/* Store byte in buffer with overflow protection */
 		if (priv->rx_pos < RX_BUF_SIZE) {
 			priv->rx_buf[priv->rx_pos++] = data[i];
 			debug_uart_print(&serdev->dev, "RX byte[%zu]: 0x%02X, buffer pos: %zu",
 					  i, data[i], priv->rx_pos);
 		} else {
-			dev_warn(&serdev->dev, "RX buffer overflow, resetting");
+			dev_warn(&serdev->dev, "RX buffer overflow, triggering recovery");
+			/* Trigger protocol recovery instead of simple reset */
+			sam_protocol_recovery(priv);
 			priv->rx_pos = 0;
+			/* Store the byte that caused overflow for resync */
+			priv->rx_buf[priv->rx_pos++] = data[i];
 		}
 
 		/* Process packet when complete */
