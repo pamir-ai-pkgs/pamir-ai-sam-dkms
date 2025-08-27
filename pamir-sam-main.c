@@ -9,8 +9,13 @@
  */
 #include "pamir-sam.h"
 
-/* Global pointer for LED brightness control access */
+/* Global pointer for LED brightness control access with protection */
 struct sam_protocol_data *g_sam_protocol_data;
+DEFINE_MUTEX(g_sam_driver_mutex);
+atomic_t g_sam_driver_refcount = ATOMIC_INIT(0);
+EXPORT_SYMBOL_GPL(g_sam_protocol_data);
+EXPORT_SYMBOL_GPL(g_sam_driver_mutex);
+EXPORT_SYMBOL_GPL(g_sam_driver_refcount);
 
 /**
  * sam_protocol_receive_buf() - Process received UART data
@@ -193,7 +198,11 @@ static int sam_protocol_probe(struct serdev_device *serdev)
 	serdev_device_set_client_ops(serdev, &sam_protocol_serdev_ops);
 
 	/* Set global pointer for LED brightness control access */
+	/* Set global pointer with protection */
+	mutex_lock(&g_sam_driver_mutex);
 	g_sam_protocol_data = priv;
+	atomic_set(&g_sam_driver_refcount, 1);
+	mutex_unlock(&g_sam_driver_mutex);
 
 	ret = serdev_device_open(serdev);
 	if (ret) {
@@ -325,7 +334,11 @@ static void sam_protocol_remove(struct serdev_device *serdev)
 	input_unregister_device(priv->input_dev);
 
 	/* Clear global pointer */
+	/* Clear global pointer with protection */
+	mutex_lock(&g_sam_driver_mutex);
 	g_sam_protocol_data = NULL;
+	atomic_set(&g_sam_driver_refcount, 0);
+	mutex_unlock(&g_sam_driver_mutex);
 }
 
 #ifdef CONFIG_OF

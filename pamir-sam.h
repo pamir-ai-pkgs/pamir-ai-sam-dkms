@@ -346,7 +346,9 @@ void process_extended_packet(struct sam_protocol_data *priv,
 int setup_char_device(struct sam_protocol_data *priv);
 void cleanup_char_device(struct sam_protocol_data *priv);
 
-/* Exported globals */
+/* Exported globals with protection */
 extern struct sam_protocol_data *g_sam_protocol_data;
+extern struct mutex g_sam_driver_mutex;  /* Protects global driver state */
+extern atomic_t g_sam_driver_refcount;    /* Reference count for driver usage */
 
 #endif /* _PAMIR_SAM_H */

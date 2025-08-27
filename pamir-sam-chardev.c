@@ -22,10 +22,21 @@ static struct sam_protocol_data *g_protocol_data;
  */
 static int sam_protocol_open(struct inode *inode, struct file *filp)
 {
-	struct sam_protocol_data *priv = g_protocol_data;
+	struct sam_protocol_data *priv;
 
-	if (!priv)
+	/* Safely access global pointer with reference counting */
+	mutex_lock(&g_sam_driver_mutex);
+	if (atomic_read(&g_sam_driver_refcount) == 0) {
+		mutex_unlock(&g_sam_driver_mutex);
 		return -ENODEV;
+	}
+	priv = g_sam_protocol_data;
+	if (!priv) {
+		mutex_unlock(&g_sam_driver_mutex);
+		return -ENODEV;
+	}
+	atomic_inc(&g_sam_driver_refcount);
+	mutex_unlock(&g_sam_driver_mutex);
 
 	filp->private_data = priv;
 	return 0;
@@ -127,6 +138,8 @@ static ssize_t sam_protocol_read(struct file *filp, char __user *buf,
  */
 static int sam_protocol_release(struct inode *inode, struct file *filp)
 {
+	/* Decrement reference count on file close */
+	atomic_dec(&g_sam_driver_refcount);
 	return 0;
 }
 

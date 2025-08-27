@@ -43,12 +43,24 @@ static int active_trigger_led = -1;
  */
 static void rgb_trigger_timer_function(struct timer_list *t)
 {
-	struct sam_protocol_data *priv = g_sam_protocol_data;
+	struct sam_protocol_data *priv;
 	uint8_t r, g, b;
 	int ret;
 
-	if (!priv || !priv->serdev || active_trigger_led < 0 || active_trigger_led >= MAX_LEDS)
+	/* Safely access global pointer with reference counting */
+	mutex_lock(&g_sam_driver_mutex);
+	if (atomic_read(&g_sam_driver_refcount) == 0) {
+		mutex_unlock(&g_sam_driver_mutex);
 		return;
+	}
+	priv = g_sam_protocol_data;
+	atomic_inc(&g_sam_driver_refcount);
+	mutex_unlock(&g_sam_driver_mutex);
+
+	if (!priv || !priv->serdev || active_trigger_led < 0 || active_trigger_led >= MAX_LEDS) {
+		atomic_dec(&g_sam_driver_refcount);
+		return;
+	}
 
 	/* Get current trigger for the LED */
 	if (pamir_leds[active_trigger_led]->trigger == heartbeat_rgb_trigger) {
@@ -98,6 +110,7 @@ static void rgb_trigger_timer_function(struct timer_list *t)
 
 	} else {
 		/* No active trigger, stop timer */
+		atomic_dec(&g_sam_driver_refcount);
 		return;
 	}
 
@@ -114,6 +127,7 @@ static void rgb_trigger_timer_function(struct timer_list *t)
 	led_states[active_trigger_led].b = b;
 
 	trigger_state++;
+	atomic_dec(&g_sam_driver_refcount);
 }
 
 /**
