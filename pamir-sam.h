@@ -53,13 +53,16 @@
 #define debug_uart_raw(dev, data, len, direction) \
 	do { \
 		if (data && len > 0) { \
+			size_t max_bytes = min_t(size_t, len, 64); \
 			char hex_str[256]; \
 			int i, offset = 0; \
-			for (i = 0; i < len && offset < sizeof(hex_str) - 3; i++) { \
-				offset += snprintf(hex_str + offset, sizeof(hex_str) - offset, \
+			for (i = 0; i < max_bytes && offset < sizeof(hex_str) - 3; i++) { \
+				offset += scnprintf(hex_str + offset, sizeof(hex_str) - offset, \
 					"%02X ", ((uint8_t *)data)[i]); \
 			} \
-			hex_str[offset] = '\0'; \
+			if (len > max_bytes) \
+				offset += scnprintf(hex_str + offset, sizeof(hex_str) - offset, "..."); \
+			hex_str[min(offset, (int)sizeof(hex_str) - 1)] = '\0'; \
 			dev_info(dev, "[UART-RAW-%s] [%s] len=%zu", direction, hex_str, len); \
 		} \
 	} while (0)
