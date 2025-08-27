@@ -263,7 +263,7 @@ def calculate_crc8(data):
 ### Technical Specifications
 
 - **Communication Direction**: Host → RP2040 (commands), RP2040 → Host (status)
-- **Supported LEDs**: 16 LEDs (ID 0-15) + Broadcast LED (ID 15 for all LEDs)
+- **Supported LEDs**: 15 individual LEDs (ID 0-14) + Broadcast to all LEDs (ID 15)
 - **Color Depth**: 4 bits per channel (RGB444), 4096 colors total
 - **LED Modes**: 4 modes (Static, Blink, Fade, Rainbow)
 - **Timing Resolution**: 4 levels (100ms, 200ms, 500ms, 1000ms intervals)
