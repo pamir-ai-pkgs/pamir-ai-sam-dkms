@@ -199,7 +199,7 @@ static ssize_t current_ma_show(struct device *dev, struct device_attribute *attr
 	bool valid;
 
 	if (!priv)
-		return snprintf(buf, PAGE_SIZE, "driver not available\n");
+		return sysfs_emit(buf, "driver not available\n");
 
 	mutex_lock(&priv->power_metrics_mutex);
 	current_ma = priv->power_metrics.current_ma;
@@ -207,9 +207,9 @@ static ssize_t current_ma_show(struct device *dev, struct device_attribute *attr
 	mutex_unlock(&priv->power_metrics_mutex);
 
 	if (!valid)
-		return snprintf(buf, PAGE_SIZE, "data not available\n");
+		return sysfs_emit(buf, "data not available\n");
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", current_ma);
+	return sysfs_emit(buf, "%d\n", current_ma);
 }
 
 static ssize_t battery_percent_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -219,7 +219,7 @@ static ssize_t battery_percent_show(struct device *dev, struct device_attribute 
 	bool valid;
 
 	if (!priv)
-		return snprintf(buf, PAGE_SIZE, "driver not available\n");
+		return sysfs_emit(buf, "driver not available\n");
 
 	mutex_lock(&priv->power_metrics_mutex);
 	battery_percent = priv->power_metrics.battery_percent;
@@ -227,9 +227,9 @@ static ssize_t battery_percent_show(struct device *dev, struct device_attribute 
 	mutex_unlock(&priv->power_metrics_mutex);
 
 	if (!valid)
-		return snprintf(buf, PAGE_SIZE, "data not available\n");
+		return sysfs_emit(buf, "data not available\n");
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", battery_percent);
+	return sysfs_emit(buf, "%u\n", battery_percent);
 }
 
 static ssize_t temperature_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -239,7 +239,7 @@ static ssize_t temperature_show(struct device *dev, struct device_attribute *att
 	bool valid;
 
 	if (!priv)
-		return snprintf(buf, PAGE_SIZE, "driver not available\n");
+		return sysfs_emit(buf, "driver not available\n");
 
 	mutex_lock(&priv->power_metrics_mutex);
 	temperature_dc = priv->power_metrics.temperature_dc;
@@ -247,9 +247,9 @@ static ssize_t temperature_show(struct device *dev, struct device_attribute *att
 	mutex_unlock(&priv->power_metrics_mutex);
 
 	if (!valid)
-		return snprintf(buf, PAGE_SIZE, "data not available\n");
+		return sysfs_emit(buf, "data not available\n");
 
-	return snprintf(buf, PAGE_SIZE, "%d.%d\n", temperature_dc / 10, abs(temperature_dc % 10));
+	return sysfs_emit(buf, "%d.%d\n", temperature_dc / 10, abs(temperature_dc % 10));
 }
 
 static ssize_t voltage_mv_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -259,7 +259,7 @@ static ssize_t voltage_mv_show(struct device *dev, struct device_attribute *attr
 	bool valid;
 
 	if (!priv)
-		return snprintf(buf, PAGE_SIZE, "driver not available\n");
+		return sysfs_emit(buf, "driver not available\n");
 
 	mutex_lock(&priv->power_metrics_mutex);
 	voltage_mv = priv->power_metrics.voltage_mv;
@@ -267,9 +267,9 @@ static ssize_t voltage_mv_show(struct device *dev, struct device_attribute *attr
 	mutex_unlock(&priv->power_metrics_mutex);
 
 	if (!valid)
-		return snprintf(buf, PAGE_SIZE, "data not available\n");
+		return sysfs_emit(buf, "data not available\n");
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", voltage_mv);
+	return sysfs_emit(buf, "%u\n", voltage_mv);
 }
 
 static ssize_t metrics_last_update_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -279,7 +279,7 @@ static ssize_t metrics_last_update_show(struct device *dev, struct device_attrib
 	bool valid;
 
 	if (!priv)
-		return snprintf(buf, PAGE_SIZE, "driver not available\n");
+		return sysfs_emit(buf, "driver not available\n");
 
 	mutex_lock(&priv->power_metrics_mutex);
 	last_update = priv->power_metrics.last_update;
@@ -287,10 +287,10 @@ static ssize_t metrics_last_update_show(struct device *dev, struct device_attrib
 	mutex_unlock(&priv->power_metrics_mutex);
 
 	if (!valid || last_update == 0)
-		return snprintf(buf, PAGE_SIZE, "never\n");
+		return sysfs_emit(buf, "never\n");
 
 	age_ms = jiffies_to_msecs(jiffies - last_update);
-	return snprintf(buf, PAGE_SIZE, "%lu ms ago\n", age_ms);
+	return sysfs_emit(buf, "%lu ms ago\n", age_ms);
 }
 
 static DEVICE_ATTR_RO(current_ma);
