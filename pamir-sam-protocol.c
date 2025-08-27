@@ -157,8 +157,12 @@ void process_packet(struct sam_protocol_data *priv,
 
 	debug_uart_print(&priv->serdev->dev, "Processing packet type: 0x%02X", type);
 
-	/* Update statistics */
-	priv->packet_stats[type >> 5]++;
+	/* Update statistics with bounds checking */
+	uint8_t stat_index = type >> 5;
+	if (stat_index < ARRAY_SIZE(priv->packet_stats))
+		priv->packet_stats[stat_index]++;
+	else
+		dev_warn(&priv->serdev->dev, "Invalid packet type 0x%02x for stats\n", type);
 
 	/* Verify checksum first */
 	if (!verify_checksum(packet)) {
