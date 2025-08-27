@@ -106,6 +106,7 @@
 /* LED control flags */
 #define LED_CMD_EXECUTE   0x10  /* Execute bit in type_flags */
 #define LED_ID_MASK       0x0F  /* 4-bit LED ID (0-15) */
+#define LED_BROADCAST     0x0F  /* Broadcast to all LEDs (ID 15) */
 #define LED_MODE_STATIC   0x00  /* Static mode */
 #define LED_MODE_BLINK    0x01  /* Blinking mode */
 #define LED_MODE_FADE     0x02  /* Fade mode */

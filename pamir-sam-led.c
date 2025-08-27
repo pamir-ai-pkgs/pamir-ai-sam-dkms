@@ -11,7 +11,7 @@
 #include <linux/timer.h>
 
 /* LED class devices for multiple LED support */
-#define MAX_LEDS 16  /* supports 16 LEDs (0-15) */
+#define MAX_LEDS 15  /* supports 15 individual LEDs (0-14) + broadcast (15) */
 struct led_classdev *pamir_leds[MAX_LEDS];
 
 /* RGB LED state for each LED */
@@ -193,25 +193,54 @@ void process_led_packet(struct sam_protocol_data *priv,
 	dev_dbg(&priv->serdev->dev, "LED packet - LED: %u, Execute: %u, Mode: %u, R: %u, G: %u, B: %u, Timing: %u\n",
 	     led_id, execute, mode, r, g, b, timing);
 
-	/* Validate LED ID */
-	if (led_id >= MAX_LEDS) {
+	/*
+	 * Validate LED ID
+	 * allow individual LEDs (0-14) and broadcast (15)
+	 */
+	if (led_id >= MAX_LEDS && led_id != LED_BROADCAST) {
 		dev_warn(&priv->serdev->dev, "Invalid LED ID: %u\n", led_id);
 		return;
 	}
 
-	/* Store LED state */
-	led_states[led_id].r = r;
-	led_states[led_id].g = g;
-	led_states[led_id].b = b;
-	led_states[led_id].mode = mode;
+	/* Handle broadcast vs individual LED */
+	if (led_id == LED_BROADCAST) {
+		/* Broadcast: update all individual LEDs */
+		int i;
 
-	/* Update LED class device if registered */
-	if (pamir_leds[led_id]) {
-		/* Convert RGB to brightness using luminance formula */
-		int brightness = (r * 299 + g * 587 + b * 114) / 1000;
+		for (i = 0; i < MAX_LEDS; i++) {
+			led_states[i].r = r;
+			led_states[i].g = g;
+			led_states[i].b = b;
+			led_states[i].mode = mode;
 
-		led_states[led_id].brightness = brightness;
-		led_set_brightness(pamir_leds[led_id], brightness);
+			/* Update LED class device if registered */
+			if (pamir_leds[i]) {
+				/* Convert RGB to brightness using luminance formula */
+				int brightness = (r * 299 + g * 587 + b * 114) / 1000;
+
+				led_states[i].brightness = brightness;
+				led_set_brightness(pamir_leds[i], brightness);
+			}
+		}
+		dev_info(&priv->serdev->dev, "LED broadcast: all LEDs set to RGB(%u,%u,%u) mode %u\n",
+			 r, g, b, mode);
+	} else {
+		/* Individual LED: update single LED */
+		led_states[led_id].r = r;
+		led_states[led_id].g = g;
+		led_states[led_id].b = b;
+		led_states[led_id].mode = mode;
+
+		/* Update LED class device if registered */
+		if (pamir_leds[led_id]) {
+			/* Convert RGB to brightness using luminance formula */
+			int brightness = (r * 299 + g * 587 + b * 114) / 1000;
+
+			led_states[led_id].brightness = brightness;
+			led_set_brightness(pamir_leds[led_id], brightness);
+		}
+		dev_info(&priv->serdev->dev, "LED %u set to RGB(%u,%u,%u) mode %u\n",
+			 led_id, r, g, b, mode);
 	}
 }
 

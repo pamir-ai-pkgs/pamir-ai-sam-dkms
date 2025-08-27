@@ -66,6 +66,7 @@
 #define LED_MODE_RAINBOW 0x0C /* 11 in bits 3-2 */
 #define LED_MODE_MASK 0x0C
 #define LED_ID_MASK 0x0F /* 4-bit LED ID (0-15) */
+#define LED_BROADCAST 0x0F /* Broadcast to all LEDs (ID 15) */
 #define LED_TIMING_MASK 0x03 /* 2-bit timing (0-3) */
 
 /* LED Timing values */
@@ -1446,7 +1447,12 @@ static int test_individual_leds(void)
 	usleep(3000000);
 
 	/* Test broadcast LED (ID 15) */
-	failed += test_led_command(15, 0, 0, 0, LED_MODE_STATIC >> 2,
+	failed += test_led_command(LED_BROADCAST, 8, 8, 8, LED_MODE_STATIC >> 2,
+				   LED_TIMING_100MS,
+				   "All LEDs White (Broadcast)");
+	usleep(2000000);
+
+	failed += test_led_command(LED_BROADCAST, 0, 0, 0, LED_MODE_STATIC >> 2,
 				   LED_TIMING_100MS,
 				   "All LEDs Off (Broadcast)");
 	usleep(1000000);
