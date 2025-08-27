@@ -195,6 +195,7 @@ static int sam_protocol_probe(struct serdev_device *serdev)
 	ret = register_led_devices(priv);
 	if (ret) {
 		dev_err(&serdev->dev, "Failed to register LED devices: %d\n", ret);
+		input_unregister_device(input_dev);
 		return ret;
 	}
 
@@ -211,8 +212,7 @@ static int sam_protocol_probe(struct serdev_device *serdev)
 	ret = serdev_device_open(serdev);
 	if (ret) {
 		dev_err(&serdev->dev, "Failed to open serdev: %d\n", ret);
-		input_unregister_device(input_dev);
-		return ret;
+		goto err_cleanup_leds;
 	}
 
 	/* Configure UART parameters */
@@ -232,9 +232,7 @@ static int sam_protocol_probe(struct serdev_device *serdev)
 	if (ret < 0) {
 		dev_err(&serdev->dev, "Failed to set up char device: %d\n",
 	  ret);
-		serdev_device_close(serdev);
-		input_unregister_device(input_dev);
-		return ret;
+		goto err_close_serdev;
 	}
 
 	/* Initialize work queue for deferred processing */
@@ -296,6 +294,18 @@ static int sam_protocol_probe(struct serdev_device *serdev)
 	debug_uart_print(&serdev->dev, "=== SAM Kernel Driver Initialized ===");
 	debug_uart_print(&serdev->dev, "Driver ready for RP2040 communication");
 	return 0;
+
+	/* Error cleanup paths */
+err_close_serdev:
+	serdev_device_close(serdev);
+err_cleanup_leds:
+	unregister_led_devices();
+	mutex_lock(&g_sam_driver_mutex);
+	g_sam_protocol_data = NULL;
+	atomic_set(&g_sam_driver_refcount, 0);
+	mutex_unlock(&g_sam_driver_mutex);
+	input_unregister_device(input_dev);
+	return ret;
 }
 
 /**
