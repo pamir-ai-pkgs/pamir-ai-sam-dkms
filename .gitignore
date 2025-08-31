@@ -10,6 +10,13 @@ dist/
 *.dsc
 *.tar.*
 *.upload
+debian/.debhelper/
+debian/debhelper-build-stamp
+debian/files
+debian/*.debhelper.log
+debian/*.substvars
+debian/pamir-ai-sam-dkms/
+debian/preinst
 
 # DKMS build artifacts
 *.o
