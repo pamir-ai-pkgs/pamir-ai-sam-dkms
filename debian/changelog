@@ -1,3 +1,25 @@
+pamir-ai-sam-dkms (2.0.0) unstable; urgency=medium
+
+  [ utsavbalar1231 ]
+  * fix(github): SAM -> sam
+  * chore: update PamirAI copyright headers
+  * chore: Disable debug info logging by default
+  * fix: Run checkpatch and maintain kernel coding style compliance
+  * docs: Document correct CRC8 test vectors in SAM-TRM-v0.2.0
+  * docs: Resolve LED ID ambiguity
+  * chore(led): Resolve LED ID ambiguity and add broadcast handling
+  * chore: ignore more build artifacts in .gitgnore
+  * pamir-sam: fix buffer overflow in packet stats indexing
+  * pamir-sam: fix stack buffer overflow in debug UART macro
+  * pamir-sam: fix global state race conditions with reference counting
+  * pamir-sam: improve RX buffer overflow handling and recovery
+  * pamir-sam: fix resource leaks in error paths
+  * pamir-sam: replace snprintf with sysfs_emit in sysfs attributes
+  * pamir-sam: add comprehensive input validation to packet handlers
+  * refactor(debian): update for modern debian packaging
+
+ -- PamirAI Incorporated <support@pamir.ai>  Fri, 05 Sep 2025 08:56:08 +0000
+
 pamir-ai-sam-dkms (1.0.0-2) unstable; urgency=medium
 
   [ utsavbalar1231 ]
