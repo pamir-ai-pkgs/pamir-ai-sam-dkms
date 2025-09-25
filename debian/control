@@ -15,10 +15,10 @@ Architecture: all
 Depends: ${misc:Depends},
          dkms,
          device-tree-compiler,
-         linux-headers-rpi-2712
+         linux-headers-vendor-rk35xx | linux-headers-current-rk35xx | linux-headers-edge-rk35xx | raspberrypi-kernel-headers
 Recommends:
 Suggests:
 Description: PamirAI Incorporated SAM DKMS kernel modules
  This package provides DKMS (Dynamic Kernel Module Support) modules
- for the PamirAI Incorporated SAM on Raspberry Pi CM5 and Distiller
- devices.
+ for the PamirAI Incorporated SAM on Raspberry Pi CM5, Rockchip RK3566
+ (Radxa Zero 3W), and Distiller devices.

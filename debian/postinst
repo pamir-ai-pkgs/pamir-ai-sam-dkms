@@ -5,26 +5,40 @@ set -e
 PACKAGE_NAME="pamir-ai-sam"
 PACKAGE_VERSION="1.0.0"
 DKMS_SOURCE_DIR="/usr/src/${PACKAGE_NAME}-${PACKAGE_VERSION}"
-OVERLAY_SOURCE="${DKMS_SOURCE_DIR}/pamir-ai-sam-overlay.dts"
-OVERLAY_DEST="/boot/firmware/overlays/pamir-ai-sam.dtbo"
+
+# Source platform detection functions
+if [ -f "${DKMS_SOURCE_DIR}/platform-detect.sh" ]; then
+	source "${DKMS_SOURCE_DIR}/platform-detect.sh"
+else
+	echo "Warning: platform-detect.sh not found, using defaults"
+	detect_platform() { echo "unknown"; }
+	get_overlay_dir() { echo "/boot/overlays/"; }
+	get_config_file() { echo "/boot/config.txt"; }
+	get_overlay_name() { echo "pamir-ai-sam"; }
+	get_dts_file() { echo "pamir-ai-sam-overlay.dts"; }
+fi
 
 case "$1" in
 configure)
 	echo "Configuring pamir-ai-sam-dkms..."
 
+	# Detect platform
+	PLATFORM=$(detect_platform)
+	echo "Detected platform: $PLATFORM"
+
 	# Add to DKMS
 	if [ -f "${DKMS_SOURCE_DIR}/dkms.conf" ]; then
 		echo "Adding ${PACKAGE_NAME} to DKMS..."
-		dkms add ${DKMS_VERSIONS} -m "${PACKAGE_NAME}" -v "${PACKAGE_VERSION}" || true
+		dkms add -m "${PACKAGE_NAME}" -v "${PACKAGE_VERSION}" || true
 
 		# Build the module
 		echo "Building ${PACKAGE_NAME} DKMS module..."
-		if dkms build ${DKMS_VERSIONS} -m "${PACKAGE_NAME}" -v "${PACKAGE_VERSION}"; then
+		if dkms build -m "${PACKAGE_NAME}" -v "${PACKAGE_VERSION}"; then
 			echo "Successfully built ${PACKAGE_NAME} modules"
 
 			# Install the module
 			echo "Installing ${PACKAGE_NAME} DKMS module..."
-			if dkms install ${DKMS_VERSIONS} -m "${PACKAGE_NAME}" -v "${PACKAGE_VERSION}"; then
+			if dkms install -m "${PACKAGE_NAME}" -v "${PACKAGE_VERSION}"; then
 				echo "Successfully installed ${PACKAGE_NAME} modules"
 			else
 				echo "Warning: Failed to install ${PACKAGE_NAME} modules"
@@ -36,17 +50,25 @@ configure)
 		echo "Error: DKMS configuration file not found at ${DKMS_SOURCE_DIR}/dkms.conf"
 	fi
 
+	# Get platform-specific paths and names
+	OVERLAY_DIR=$(get_overlay_dir "$PLATFORM")
+	CONFIG_FILE=$(get_config_file "$PLATFORM")
+	OVERLAY_NAME=$(get_overlay_name "$PLATFORM")
+	DTS_FILE=$(get_dts_file "$PLATFORM")
+	OVERLAY_SOURCE="${DKMS_SOURCE_DIR}/${DTS_FILE}"
+	OVERLAY_DEST="${OVERLAY_DIR}${OVERLAY_NAME}.dtbo"
+
 	# Compile and install device tree overlay
 	if [ -f "${OVERLAY_SOURCE}" ]; then
-		echo "Compiling device tree overlay..."
+		echo "Compiling device tree overlay for $PLATFORM..."
 
 		# Check if device-tree-compiler is available
 		if command -v dtc &>/dev/null; then
 			# Create overlay directory if it doesn't exist (only if parent exists)
-			if [ -d "/boot/firmware" ]; then
-				mkdir -p "$(dirname "${OVERLAY_DEST}")"
+			if [ -d "$(dirname "${OVERLAY_DIR}")" ] || [ "$PLATFORM" = "unknown" ]; then
+				mkdir -p "${OVERLAY_DIR}"
 			else
-				echo "Warning: /boot/firmware not found, skipping overlay compilation"
+				echo "Warning: Parent directory for overlays not found, skipping overlay compilation"
 				OVERLAY_SOURCE=""
 			fi
 
@@ -60,46 +82,81 @@ configure)
 			echo "Warning: device-tree-compiler (dtc) not found, skipping overlay compilation"
 		fi
 	else
-		echo "Warning: Device tree overlay source not found"
+		echo "Warning: Device tree overlay source not found at ${OVERLAY_SOURCE}"
 	fi
 
 	echo "Updating module dependencies..."
-	depmod -a || true
 	if [ -d "/lib/modules/$(uname -r)" ]; then
 		depmod -a || true
 	else
 		echo "Skipping depmod in cross-compilation environment"
 	fi
 
-	# Auto-configure device tree overlay in config.txt
-	CONFIG_FILE="/boot/firmware/config.txt"
-	OVERLAY_LINE="dtoverlay=pamir-ai-sam"
+	# Configure module auto-loading for Armbian/Rockchip platforms
+	if [ "$PLATFORM" = "armbian" ] || [ "$PLATFORM" = "rockchip" ]; then
+		echo "Configuring module auto-loading for $PLATFORM..."
+		# Create modules-load.d configuration for systemd
+		mkdir -p /etc/modules-load.d
+		echo "pamir-ai-sam" > /etc/modules-load.d/pamir-ai-sam.conf
+		echo "Module auto-loading configured in /etc/modules-load.d/pamir-ai-sam.conf"
+	fi
 
+	# Auto-configure device tree overlay based on platform
 	if [ -f "${CONFIG_FILE}" ]; then
 		echo "Configuring device tree overlay in ${CONFIG_FILE}..."
 
-		# Check if overlay is already configured
-		if ! grep -q "^${OVERLAY_LINE}" "${CONFIG_FILE}"; then
-			# Check if file doesn't end with newline, add one if needed
-			if [ -s "${CONFIG_FILE}" ] && [ "$(tail -c1 "${CONFIG_FILE}" | wc -l)" -eq 0 ]; then
-				echo "" >>"${CONFIG_FILE}"
-			fi
-			# Add a comment and the overlay line
-			echo "# Pamir AI SAM - Added by pamir-ai-sam-dkms package" >>"${CONFIG_FILE}"
-			echo "${OVERLAY_LINE}" >>"${CONFIG_FILE}"
-			echo "Device tree overlay configured in ${CONFIG_FILE}"
-		else
-			echo "Device tree overlay already configured in ${CONFIG_FILE}"
-		fi
+		case "$PLATFORM" in
+			armbian|rockchip)
+				# Handle Armbian/Rockchip configuration
+				if grep -q "^overlays=" "${CONFIG_FILE}"; then
+					# Check if our overlay is already in the list
+					if ! grep -q "${OVERLAY_NAME}" "${CONFIG_FILE}"; then
+						# Append to existing overlays line
+						sed -i "/^overlays=/ s/$/ ${OVERLAY_NAME}/" "${CONFIG_FILE}"
+						echo "Added ${OVERLAY_NAME} to overlays in ${CONFIG_FILE}"
+					else
+						echo "Overlay ${OVERLAY_NAME} already configured in ${CONFIG_FILE}"
+					fi
+				else
+					# Add new overlays line
+					if [ -s "${CONFIG_FILE}" ] && [ "$(tail -c1 "${CONFIG_FILE}" | wc -l)" -eq 0 ]; then
+						echo "" >>"${CONFIG_FILE}"
+					fi
+					echo "overlays=${OVERLAY_NAME}" >>"${CONFIG_FILE}"
+					echo "Created overlays entry with ${OVERLAY_NAME} in ${CONFIG_FILE}"
+				fi
+				;;
+			rpi|*)
+				# Handle Raspberry Pi configuration (default)
+				OVERLAY_LINE="dtoverlay=${OVERLAY_NAME}"
+				if ! grep -q "^${OVERLAY_LINE}" "${CONFIG_FILE}"; then
+					# Check if file doesn't end with newline, add one if needed
+					if [ -s "${CONFIG_FILE}" ] && [ "$(tail -c1 "${CONFIG_FILE}" | wc -l)" -eq 0 ]; then
+						echo "" >>"${CONFIG_FILE}"
+					fi
+					# Add a comment and the overlay line
+					echo "# Pamir AI SAM - Added by pamir-ai-sam-dkms package" >>"${CONFIG_FILE}"
+					echo "${OVERLAY_LINE}" >>"${CONFIG_FILE}"
+					echo "Device tree overlay configured in ${CONFIG_FILE}"
+				else
+					echo "Device tree overlay already configured in ${CONFIG_FILE}"
+				fi
+				;;
+		esac
 	else
 		echo "Warning: ${CONFIG_FILE} not found, overlay not auto-configured"
+		echo "You may need to manually configure the overlay for your platform"
 	fi
 
 	echo ""
 	echo "Pamir AI SAM DKMS installation completed!"
 	echo ""
-	echo "The sam has been automatically configured in ${CONFIG_FILE}"
-	echo "Please reboot your system to activate the sam."
+	echo "Platform: $PLATFORM"
+	echo "Overlay: ${OVERLAY_NAME}"
+	echo "Config file: ${CONFIG_FILE}"
+	echo ""
+	echo "The SAM has been automatically configured."
+	echo "Please reboot your system to activate the SAM."
 	echo ""
 	echo "Or to load modules immediately without reboot:"
 	echo "  sudo modprobe pamir-ai-sam"

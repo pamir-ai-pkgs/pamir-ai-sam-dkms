@@ -6,6 +6,7 @@
  *
  * Copyright (C) 2025 PamirAI Incorporated - http://www.pamir.ai/
  */
+#include <linux/version.h>
 #include "pamir-sam.h"
 
 /* Global device data pointer for char device operations */
@@ -190,8 +191,12 @@ int setup_char_device(struct sam_protocol_data *priv)
 		return ret;
 	}
 
-	/* Create device class */
+	/* Create device class - kernel API changed in 6.4 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
 	priv->dev_class = class_create(DEVICE_NAME);
+#else
+	priv->dev_class = class_create(THIS_MODULE, DEVICE_NAME);
+#endif
 	if (IS_ERR(priv->dev_class)) {
 		ret = PTR_ERR(priv->dev_class);
 		dev_err(&priv->serdev->dev,

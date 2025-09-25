@@ -1,6 +1,6 @@
 # Pamir AI Signal Aggregation Module (SAM) DKMS Driver
 
-This package contains the DKMS (Dynamic Kernel Module Support) driver for the Pamir AI Signal Aggregation Module (SAM). The SAM driver enables bidirectional communication between a Linux host system (Raspberry Pi CM5) and an RP2040 microcontroller via UART, providing comprehensive hardware control and status reporting functionality.
+This package contains the DKMS (Dynamic Kernel Module Support) driver for the Pamir AI Signal Aggregation Module (SAM). The SAM driver enables bidirectional communication between a Linux host system (Raspberry Pi CM5, Rockchip RK3566/Radxa Zero 3W) and an RP2040 microcontroller via UART, providing comprehensive hardware control and status reporting functionality.
 
 ## Overview
 
@@ -29,7 +29,9 @@ The Pamir AI SAM driver implements a highly optimized 4-byte packet protocol des
 - **4-byte Packet Format**: Ultra-optimized communication protocol with minimal overhead
 - **Message Types**: 8 different message types covering all hardware functions
 - **Error Detection**: XOR checksum validation with automatic recovery mechanisms
-- **UART Communication**: 115200 baud, 8N1 format via UART2 (GPIO4/5)
+- **UART Communication**: 115200 baud, 8N1 format
+  - Raspberry Pi CM5: UART2 (GPIO4/5)
+  - Rockchip RK3566: UART3 (GPIO1_A0/A1, pins 3/5)
 - **Timing Constraints**: Sub-millisecond packet processing with configurable timeouts
 
 ### Linux Integration
@@ -50,7 +52,10 @@ The Pamir AI SAM driver implements a highly optimized 4-byte packet protocol des
 - DKMS package installed
 - Device Tree Compiler (dtc)
 - Root privileges
-- Raspberry Pi CM5 with BCM2712 ARM64 architecture
+- Supported hardware:
+  - Raspberry Pi CM5 with BCM2712 ARM64 architecture
+  - Rockchip RK3566 boards (Radxa Zero 3W)
+  - Other compatible ARM64 platforms
 
 ### Install DKMS Module
 
@@ -60,18 +65,34 @@ sudo ./install.sh
 
 ### Enable the SAM Module
 
-1. Add the device tree overlay to `/boot/config.txt`:
+#### For Raspberry Pi CM5:
+
+1. Add the device tree overlay to `/boot/firmware/config.txt`:
    ```
    dtoverlay=pamir-ai-sam
    ```
 
-2. Configure UART2 in `/boot/config.txt` (if not already done):
+2. Configure UART2 in `/boot/firmware/config.txt` (if not already done):
    ```
    enable_uart=1
    dtoverlay=uart2
    ```
 
 3. Reboot your system
+
+#### For Rockchip RK3566 (Radxa Zero 3W with Armbian):
+
+1. Add the overlay to `/boot/armbianEnv.txt`:
+   ```
+   overlays=pamir-ai-sam-rk3566
+   ```
+   Or append to existing overlays line if present.
+
+2. The UART3 interface on pins 3 (RX) and 5 (TX) will be automatically configured.
+
+3. Reboot your system
+
+**Note**: The installation script automatically detects your platform and configures the appropriate overlay.
 
 ## Usage
 

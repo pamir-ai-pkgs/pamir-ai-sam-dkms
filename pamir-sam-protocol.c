@@ -159,6 +159,7 @@ void process_packet(struct sam_protocol_data *priv,
 
 	/* Update statistics with bounds checking */
 	uint8_t stat_index = type >> 5;
+
 	if (stat_index < ARRAY_SIZE(priv->packet_stats))
 		priv->packet_stats[stat_index]++;
 	else

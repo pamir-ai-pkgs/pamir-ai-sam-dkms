@@ -7,6 +7,7 @@
  *
  * Copyright (C) 2025 PamirAI Incorporated - http://www.pamir.ai/
  */
+#include <linux/version.h>
 #include "pamir-sam.h"
 
 /* Global pointer for LED brightness control access with protection */
@@ -24,23 +25,37 @@ EXPORT_SYMBOL_GPL(g_sam_driver_refcount);
  * @count: Number of bytes received
  *
  * State machine for packet processing.
+ * Note: Kernel 5.13+ changed return type from size_t to int
  *
  * Return: Number of bytes processed
  */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
+static int sam_protocol_receive_buf(struct serdev_device *serdev,
+				     const unsigned char *data, size_t count)
+#else
 static size_t sam_protocol_receive_buf(struct serdev_device *serdev,
 				     const unsigned char *data, size_t count)
+#endif
 {
 	struct sam_protocol_data *priv = serdev_device_get_drvdata(serdev);
 	size_t i;
 
 	if (!priv) {
 		dev_err(&serdev->dev, "UART RX: priv is NULL!");
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
+		return (int)count;
+#else
 		return count;
+#endif
 	}
 
 	if (!data || count == 0) {
 		dev_warn(&serdev->dev, "UART RX: Invalid data or count=0");
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
+		return (int)count;
+#else
 		return count;
+#endif
 	}
 
 	debug_uart_raw(&serdev->dev, data, count, "RX");
@@ -72,7 +87,11 @@ static size_t sam_protocol_receive_buf(struct serdev_device *serdev,
 
 	priv->last_receive_jiffies = jiffies;
 	debug_uart_print(&serdev->dev, "RX callback completed, processed %zu bytes", count);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
+	return (int)count;
+#else
 	return count;
+#endif
 }
 
 /* UART operations */

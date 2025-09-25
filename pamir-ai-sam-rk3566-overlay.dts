@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Device Tree overlay for Pamir AI SAM Module on Rockchip RK3566
+ * Compatible with Radxa Zero 3W and other RK3566-based boards
+ *
+ * Copyright (C) 2025 PamirAI Incorporated.
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	metadata {
+		title = "Enable PamirAI SAM Module";
+		compatible = "radxa,zero3", "rockchip,rk3566";
+		category = "misc";
+		exclusive = "GPIO1_A0", "GPIO1_A1", "UART3";
+		description = "Enables the PamirAI SAM Module connected via UART3 M0";
+	};
+};
+
+
+&uart3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3m0_xfer>;
+
+	pamir_ai_sam: pamir-ai-sam {
+		compatible = "pamir-ai,sam";
+		status = "okay";
+		debug-level = <0>;  /* no debug output */
+		recovery-timeout-ms = <1000>;
+		power-poll-interval-ms = <1000>; /* 0 means no polling */
+		/* ack-required; // Disabled to prevent ping spam */
+	};
+};
