@@ -4,8 +4,10 @@ Priority: optional
 Maintainer: PamirAI Incorporated <founders@pamir.ai>
 Standards-Version: 4.6.0
 Build-Depends: debhelper-compat (= 13),
-               dkms,
-               device-tree-compiler
+               dh-exec,
+               dh-sequence-dkms,
+               device-tree-compiler,
+               lintian
 Homepage: https://github.com/pamir-ai/distiller-cm5-kernel
 Vcs-Git: https://github.com/pamir-ai/distiller-cm5-kernel.git
 Vcs-Browser: https://github.com/pamir-ai/distiller-cm5-kernel
@@ -13,12 +15,15 @@ Vcs-Browser: https://github.com/pamir-ai/distiller-cm5-kernel
 Package: pamir-ai-sam-dkms
 Architecture: all
 Depends: ${misc:Depends},
-         dkms,
-         device-tree-compiler,
-         linux-headers-vendor-rk35xx | linux-headers-current-rk35xx | linux-headers-edge-rk35xx | raspberrypi-kernel-headers
-Recommends:
-Suggests:
-Description: PamirAI Incorporated SAM DKMS kernel modules
- This package provides DKMS (Dynamic Kernel Module Support) modules
- for the PamirAI Incorporated SAM on Raspberry Pi CM5, Rockchip RK3566
- (Radxa Zero 3W), and Distiller devices.
+         device-tree-compiler
+Recommends: linux-headers-vendor-rk35xx | linux-headers-current-rk35xx | linux-headers-edge-rk35xx | raspberrypi-kernel-headers
+Description: PamirAI Signal Aggregation Module DKMS driver
+ This package provides DKMS (Dynamic Kernel Module Support) driver
+ for the PamirAI Signal Aggregation Module (SAM). The driver implements
+ a highly optimized 4-byte packet protocol for bidirectional communication
+ between Linux host systems and an RP2040 microcontroller via UART.
+ .
+ Supported platforms:
+  - Raspberry Pi CM5 (BCM2712)
+  - Rockchip RK3566 (Radxa Zero 3W)
+ .

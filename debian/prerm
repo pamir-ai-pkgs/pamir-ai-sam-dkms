@@ -2,95 +2,49 @@
 
 set -e
 
-PACKAGE_NAME="pamir-ai-sam"
-PACKAGE_VERSION="1.0.0"
-DKMS_SOURCE_DIR="/usr/src/${PACKAGE_NAME}-${PACKAGE_VERSION}"
-
-# Source platform detection functions
-if [ -f "${DKMS_SOURCE_DIR}/platform-detect.sh" ]; then
-    source "${DKMS_SOURCE_DIR}/platform-detect.sh"
-    PLATFORM=$(detect_platform)
-else
-    echo "Warning: platform-detect.sh not found, assuming RPi"
-    PLATFORM="rpi"
-fi
+# DKMS variables
+DKMS_NAME="pamir-ai-sam"
+DKMS_VERSION="2.0.0"
+DKMS_SOURCE_DIR="/usr/src/${DKMS_NAME}-${DKMS_VERSION}"
+source "${DKMS_SOURCE_DIR}/platform-detect.sh"
 
 case "$1" in
-    remove|upgrade|deconfigure)
-        echo "Removing pamir-ai-sam-dkms..."
+remove | upgrade | deconfigure)
+	# Remove DKMS module
+	echo "Removing ${DKMS_NAME} ${DKMS_VERSION} from DKMS..."
+	if [ "$(dkms status -m ${DKMS_NAME} -v ${DKMS_VERSION})" ]; then
+		dkms remove -m ${DKMS_NAME} -v ${DKMS_VERSION} --all
+	fi
 
-        # Unload modules if they are loaded
-        echo "Unloading kernel module..."
-        if lsmod | grep -q "^pamir-ai-sam"; then
-            echo "Unloading pamir-ai-sam..."
-            rmmod "pamir-ai-sam" || echo "Warning: Failed to unload pamir-ai-sam"
-        fi
+	# Detect platform
+	PLATFORM=$(detect_platform)
+	[ "$PLATFORM" = "unknown" ] && exit 1
 
-        # Remove device tree overlay configuration based on platform
-        case "$PLATFORM" in
-            armbian|rockchip)
-                CONFIG_FILE="/boot/armbianEnv.txt"
-                OVERLAY_NAME="pamir-ai-sam-rk3566"
+	# Get platform-specific paths and names
+	OVERLAY_DIR=$(get_overlay_dir "$PLATFORM")
+	CONFIG_FILE=$(get_config_file "$PLATFORM")
+	OVERLAY_NAME=$(get_overlay_name "$PLATFORM")
+	OVERLAY_DEST="${OVERLAY_DIR}${OVERLAY_NAME}.dtbo"
 
-                if [ -f "${CONFIG_FILE}" ]; then
-                    echo "Removing overlay from ${CONFIG_FILE}..."
+	# Remove device tree overlay
+	[ -f "$OVERLAY_DEST" ] && rm -f "$OVERLAY_DEST"
 
-                    # Remove from overlays line (handle as space-separated list)
-                    if grep -q "^overlays=" "${CONFIG_FILE}"; then
-                        # Remove our overlay from the list
-                        sed -i "s/\b${OVERLAY_NAME}\b//g" "${CONFIG_FILE}"
-                        # Clean up extra spaces
-                        sed -i "s/  */ /g; s/overlays= /overlays=/g; s/ $//" "${CONFIG_FILE}"
-                        # Remove empty overlays= line
-                        sed -i "/^overlays=$/d" "${CONFIG_FILE}"
-                        echo "Removed ${OVERLAY_NAME} from ${CONFIG_FILE}"
-                    fi
-                else
-                    echo "Warning: ${CONFIG_FILE} not found, skipping config removal"
-                fi
-                ;;
-            rpi|*)
-                CONFIG_FILE="/boot/firmware/config.txt"
-                OVERLAY_LINE="dtoverlay=pamir-ai-sam"
-                COMMENT_LINE="# Pamir AI SAM - Added by pamir-ai-sam-dkms package"
+	# Remove from config file
+	if [ -f "$CONFIG_FILE" ]; then
+		if grep -q "^dtoverlay=${OVERLAY_NAME}" "$CONFIG_FILE"; then
+			echo "Removing overlay from $CONFIG_FILE"
+			sed -i "/^dtoverlay=${OVERLAY_NAME}/d" "$CONFIG_FILE"
+			echo "Please reboot for changes to take effect"
+		fi
+	fi
+	;;
 
-                if [ -f "${CONFIG_FILE}" ]; then
-                    echo "Removing device tree overlay configuration from ${CONFIG_FILE}..."
+failed-upgrade) ;;
 
-                    # Create a temporary file without the overlay lines
-                    TEMP_FILE=$(mktemp)
-
-                    # Remove the overlay line and the comment line
-                    grep -v "^${OVERLAY_LINE}" "${CONFIG_FILE}" | grep -v "^${COMMENT_LINE}" > "${TEMP_FILE}" || true
-
-                    # Replace the original file only if temp file has content
-                    if [ -s "${TEMP_FILE}" ]; then
-                        mv "${TEMP_FILE}" "${CONFIG_FILE}"
-                    else
-                        rm -f "${TEMP_FILE}"
-                    fi
-
-                    echo "Device tree overlay configuration removed from ${CONFIG_FILE}"
-                else
-                    echo "Warning: ${CONFIG_FILE} not found, skipping config removal"
-                fi
-                ;;
-        esac
-
-        # Remove from DKMS
-        if dkms status -m "${PACKAGE_NAME}" -v "${PACKAGE_VERSION}" | grep -q "${PACKAGE_NAME}"; then
-            echo "Removing ${PACKAGE_NAME} from DKMS..."
-            dkms remove -m "${PACKAGE_NAME}" -v "${PACKAGE_VERSION}" --all || true
-        fi
-        ;;
-
-    failed-upgrade)
-        ;;
-
-    *)
-        echo "prerm called with unknown argument \`$1'" >&2
-        exit 1
-        ;;
+*)
+	echo "prerm called with unknown argument '$1'" >&2
+	exit 1
+	;;
 esac
 
 #DEBHELPER#

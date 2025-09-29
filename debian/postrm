@@ -2,104 +2,18 @@
 
 set -e
 
-PACKAGE_NAME="pamir-ai-sam"
-PACKAGE_VERSION="1.0.0"
-DKMS_SOURCE_DIR="/usr/src/${PACKAGE_NAME}-${PACKAGE_VERSION}"
-
-# Source platform detection functions if available
-if [ -f "${DKMS_SOURCE_DIR}/platform-detect.sh" ]; then
-    source "${DKMS_SOURCE_DIR}/platform-detect.sh"
-    PLATFORM=$(detect_platform)
-    OVERLAY_DIR=$(get_overlay_dir "$PLATFORM")
-    OVERLAY_NAME=$(get_overlay_name "$PLATFORM")
-else
-    # Fallback: try to detect based on directory existence
-    if [ -d "/boot/dtb/rockchip/overlay" ]; then
-        PLATFORM="armbian"
-        OVERLAY_DIR="/boot/dtb/rockchip/overlay/"
-        OVERLAY_NAME="pamir-ai-sam-rk3566"
-    else
-        PLATFORM="rpi"
-        OVERLAY_DIR="/boot/firmware/overlays/"
-        OVERLAY_NAME="pamir-ai-sam"
-    fi
-fi
-
-OVERLAY_DEST="${OVERLAY_DIR}${OVERLAY_NAME}.dtbo"
-
 case "$1" in
-    remove)
-        echo "Cleaning up pamir-ai-sam-dkms..."
+purge)
+	rm -rf /usr/src/pamir-ai-sam-* 2>/dev/null || true
+	;;
 
-        # Remove device tree overlay
-        if [ -f "${OVERLAY_DEST}" ]; then
-            echo "Removing device tree overlay: ${OVERLAY_DEST}"
-            rm -f "${OVERLAY_DEST}"
-        fi
+remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+	;;
 
-        # Remove module auto-loading configuration if it exists
-        if [ -f "/etc/modules-load.d/pamir-ai-sam.conf" ]; then
-            echo "Removing module auto-loading configuration..."
-            rm -f "/etc/modules-load.d/pamir-ai-sam.conf"
-        fi
-
-        # Update module dependencies
-        if [ -d "/lib/modules/$(uname -r)" ]; then
-            echo "Updating module dependencies..."
-            depmod -a || true
-        fi
-
-        echo "Pamir AI SAM DKMS removal completed"
-        ;;
-
-    purge)
-        echo "Purging pamir-ai-sam-dkms..."
-
-        # Remove device tree overlay file
-        if [ -f "${OVERLAY_DEST}" ]; then
-            echo "Removing device tree overlay: ${OVERLAY_DEST}"
-            rm -f "${OVERLAY_DEST}"
-        fi
-
-        # Remove module auto-loading configuration if it exists
-        if [ -f "/etc/modules-load.d/pamir-ai-sam.conf" ]; then
-            echo "Removing module auto-loading configuration..."
-            rm -f "/etc/modules-load.d/pamir-ai-sam.conf"
-        fi
-
-        # Remove DKMS source directory (if it still exists)
-        if [ -d "${DKMS_SOURCE_DIR}" ]; then
-            echo "Removing DKMS source directory..."
-            rm -rf "${DKMS_SOURCE_DIR}"
-        fi
-
-        # Update module dependencies
-        if [ -d "/lib/modules/$(uname -r)" ]; then
-            echo "Updating module dependencies..."
-            depmod -a || true
-        fi
-
-        echo "Pamir AI SAM DKMS purge completed"
-
-        echo ""
-        echo "Note: The device tree overlay configuration has been automatically"
-        case "$PLATFORM" in
-            armbian|rockchip)
-                echo "removed from /boot/armbianEnv.txt during package removal."
-                ;;
-            rpi|*)
-                echo "removed from /boot/firmware/config.txt during package removal."
-                ;;
-        esac
-        ;;
-
-    upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
-        ;;
-
-    *)
-        echo "postrm called with unknown argument \`$1'" >&2
-        exit 1
-        ;;
+*)
+	echo "postrm called with unknown argument '$1'" >&2
+	exit 1
+	;;
 esac
 
 #DEBHELPER#
