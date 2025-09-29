@@ -25,15 +25,17 @@ EXPORT_SYMBOL_GPL(g_sam_driver_refcount);
  * @count: Number of bytes received
  *
  * State machine for packet processing.
- * Note: Kernel 5.13+ changed return type from size_t to int
+ * Note: Mainline kernel 5.13+ changed return type from int to size_t, but
+ * vendor kernels (Rockchip, Allwinner) kept the old int return type even
+ * in 6.x series. Using 6.8 threshold to cover vendor kernel compatibility.
  *
  * Return: Number of bytes processed
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
-static int sam_protocol_receive_buf(struct serdev_device *serdev,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
+static size_t sam_protocol_receive_buf(struct serdev_device *serdev,
 				     const unsigned char *data, size_t count)
 #else
-static size_t sam_protocol_receive_buf(struct serdev_device *serdev,
+static int sam_protocol_receive_buf(struct serdev_device *serdev,
 				     const unsigned char *data, size_t count)
 #endif
 {
@@ -43,18 +45,18 @@ static size_t sam_protocol_receive_buf(struct serdev_device *serdev,
 	if (!priv) {
 		dev_err(&serdev->dev, "UART RX: priv is NULL!");
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
-		return (int)count;
-#else
 		return count;
+#else
+		return (int)count;
 #endif
 	}
 
 	if (!data || count == 0) {
 		dev_warn(&serdev->dev, "UART RX: Invalid data or count=0");
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
-		return (int)count;
-#else
 		return count;
+#else
+		return (int)count;
 #endif
 	}
 
@@ -88,9 +90,9 @@ static size_t sam_protocol_receive_buf(struct serdev_device *serdev,
 	priv->last_receive_jiffies = jiffies;
 	debug_uart_print(&serdev->dev, "RX callback completed, processed %zu bytes", count);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
-	return (int)count;
-#else
 	return count;
+#else
+	return (int)count;
 #endif
 }
 
