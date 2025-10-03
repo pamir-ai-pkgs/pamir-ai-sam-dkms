@@ -14,7 +14,10 @@ case "$1" in
 configure)
 	# Detect platform
 	PLATFORM=$(detect_platform)
-	[ "$PLATFORM" = "unknown" ] && exit 1
+	if [ "$PLATFORM" = "unknown" ]; then
+		echo "Warning: Unknown platform detected, skipping overlay installation" >&2
+		exit 0
+	fi
 	echo "Detected platform: $PLATFORM"
 
 	# Get platform-specific paths and names

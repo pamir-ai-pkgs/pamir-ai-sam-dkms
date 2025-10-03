@@ -18,7 +18,10 @@ remove | upgrade | deconfigure)
 
 	# Detect platform
 	PLATFORM=$(detect_platform)
-	[ "$PLATFORM" = "unknown" ] && exit 1
+	if [ "$PLATFORM" = "unknown" ]; then
+		echo "Warning: Unknown platform, skipping config cleanup" >&2
+		exit 0
+	fi
 
 	# Get platform-specific paths and names
 	OVERLAY_DIR=$(get_overlay_dir "$PLATFORM")
@@ -31,10 +34,25 @@ remove | upgrade | deconfigure)
 
 	# Remove from config file
 	if [ -f "$CONFIG_FILE" ]; then
-		if grep -q "^dtoverlay=${OVERLAY_NAME}" "$CONFIG_FILE"; then
-			echo "Removing overlay from $CONFIG_FILE"
-			sed -i "/^dtoverlay=${OVERLAY_NAME}/d" "$CONFIG_FILE"
-			echo "Please reboot for changes to take effect"
+		if [ "$PLATFORM" = "armbian" ] || [ "$PLATFORM" = "rockchip" ]; then
+			# Armbian/Rockchip: overlays= space-separated syntax
+			if grep -q "^overlays=.*${OVERLAY_NAME}" "$CONFIG_FILE"; then
+				echo "Removing overlay from $CONFIG_FILE"
+				# Handle overlay at any position in space-separated list
+				sed -i "s/\(^overlays=.*\) ${OVERLAY_NAME} /\1 /" "$CONFIG_FILE"
+				sed -i "s/ ${OVERLAY_NAME}$//" "$CONFIG_FILE"
+				sed -i "s/^overlays=${OVERLAY_NAME} /overlays=/" "$CONFIG_FILE"
+				sed -i "s/^overlays=${OVERLAY_NAME}$/overlays=/" "$CONFIG_FILE"
+				sed -i "/^overlays=$/d" "$CONFIG_FILE"
+				echo "Please reboot for changes to take effect"
+			fi
+		else
+			# Raspberry Pi: dtoverlay= line-based syntax
+			if grep -q "^dtoverlay=${OVERLAY_NAME}" "$CONFIG_FILE"; then
+				echo "Removing overlay from $CONFIG_FILE"
+				sed -i "/^dtoverlay=${OVERLAY_NAME}/d" "$CONFIG_FILE"
+				echo "Please reboot for changes to take effect"
+			fi
 		fi
 	fi
 	;;
