@@ -1,220 +1,391 @@
 #!/bin/bash
-
-# Pamir AI SAM DKMS Debian Package Builder
-# This script builds a Debian package for the Pamir AI sam DKMS modules
+# Universal Debian Package Builder
+# Compatible with all Pamir AI projects
+# Modern Debian packaging practices
 
 set -e
 
-# Configuration
-PACKAGE_NAME="pamir-ai-sam-dkms"
-PACKAGE_VERSION="2.0.0"
-BUILD_DIR="dist"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Colors for output
+# Color codes for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Print functions
-print_info() {
-	echo -e "${BLUE}[INFO]${NC} $1"
+# Configuration
+DIST_DIR="dist"
+TARGET_ARCHITECTURE="${TARGET_ARCH:-arm64}"  # Can be overridden with TARGET_ARCH env var
+DEBIAN_DIR="debian"
+
+# Logging functions
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
 }
 
-print_success() {
-	echo -e "${GREEN}[SUCCESS]${NC} $1"
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
-print_warning() {
-	echo -e "${YELLOW}[WARNING]${NC} $1"
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
-print_error() {
-	echo -e "${RED}[ERROR]${NC} $1"
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
-# Check if running on a Debian-based system
-check_system() {
-	if ! command -v dpkg-buildpackage &>/dev/null; then
-		print_error "dpkg-buildpackage not found. Please install dpkg-dev:"
-		print_error "  sudo apt-get install dpkg-dev"
-		exit 1
-	fi
+# Detect project type
+detect_project_type() {
+    local project_type="unknown"
 
-	if ! command -v dh &>/dev/null; then
-		print_error "dh not found. Please install debhelper:"
-		print_error "  sudo apt-get install debhelper"
-		exit 1
-	fi
+    # Check for Python project with uv
+    if [ -f "pyproject.toml" ] && grep -q "uv" "pyproject.toml" 2>/dev/null; then
+        project_type="python-uv"
+    elif [ -f "pyproject.toml" ]; then
+        project_type="python"
+    # Check for Node.js project
+    elif [ -f "package.json" ]; then
+        project_type="nodejs"
+    # Check for DKMS project
+    elif [ -f "dkms.conf" ]; then
+        project_type="dkms"
+    # Check for systemd service project
+    elif [ -d "systemd" ] || ls *.service 2>/dev/null | grep -q service; then
+        project_type="systemd"
+    fi
+
+    echo "$project_type"
+}
+
+# Get package name from control file
+get_package_name() {
+    if [ -f "${DEBIAN_DIR}/control" ]; then
+        grep "^Package:" "${DEBIAN_DIR}/control" | awk '{print $2}' | head -1
+    else
+        echo ""
+    fi
 }
 
 # Check build dependencies
-check_dependencies() {
-	print_info "Checking build dependencies..."
+check_build_dependencies() {
+    local missing_tools=""
 
-	local missing_deps=()
+    # Check for required commands (works with both package and manual install)
+    for cmd in dpkg-buildpackage dch dh fakeroot; do
+        if ! command -v $cmd >/dev/null 2>&1; then
+            missing_tools="$missing_tools $cmd"
+        fi
+    done
 
-	# Required packages for building
-	local required_packages=(
-		"build-essential"
-		"debhelper"
-		"dkms"
-		"device-tree-compiler"
-		"fakeroot"
-		"dpkg-dev"
-	)
+    if [ -n "$missing_tools" ]; then
+        log_error "Missing build tools:$missing_tools"
+        log_info "Install with: sudo apt-get install dpkg-dev devscripts debhelper fakeroot"
+        return 1
+    fi
 
-	for package in "${required_packages[@]}"; do
-		if ! dpkg -l | grep -q "^ii  ${package}"; then
-			missing_deps+=("${package}")
-		fi
-	done
+    # Note: dpkg-buildpackage checks Build-Depends from debian/control
+    # We use -d flag to ignore dependency checks when cross-compiling or using manual tools
 
-	if [ ${#missing_deps[@]} -ne 0 ]; then
-		print_error "Missing build dependencies: ${missing_deps[*]}"
-		print_error "Please install them with:"
-		print_error "  sudo apt-get install ${missing_deps[*]}"
-		exit 1
-	fi
-
-	print_success "All build dependencies are satisfied"
+    return 0
 }
 
-# Clean previous builds
+# Clean build artifacts
 clean_build() {
-	print_info "Cleaning previous builds..."
+    local package_name=$(get_package_name)
 
-	# Remove build directory
-	if [ -d "${BUILD_DIR}" ]; then
-		rm -rf "${BUILD_DIR}"
-	fi
+    log_info "Cleaning build artifacts..."
 
-	# Remove any generated files
-	rm -f ../*.deb ../*.changes ../*.buildinfo ../*.dsc ../*.tar.* ../*.upload
+    # Clean debian build files
+    [ -f "${DEBIAN_DIR}/files" ] && rm -f "${DEBIAN_DIR}/files"
+    [ -f "${DEBIAN_DIR}/*.debhelper.log" ] && rm -f "${DEBIAN_DIR}"/*.debhelper.log
+    [ -f "${DEBIAN_DIR}/*.substvars" ] && rm -f "${DEBIAN_DIR}"/*.substvars
+    [ -d "${DEBIAN_DIR}/.debhelper" ] && rm -rf "${DEBIAN_DIR}/.debhelper"
+    [ -d "${DEBIAN_DIR}/${package_name}" ] && rm -rf "${DEBIAN_DIR}/${package_name}"
+    [ -f "${DEBIAN_DIR}/debhelper-build-stamp" ] && rm -f "${DEBIAN_DIR}/debhelper-build-stamp"
 
-	print_success "Build environment cleaned"
+    # Clean distribution directory
+    rm -rf "${DIST_DIR}"
+
+    # Clean package files in parent directory
+    rm -f ../"${package_name}"_*.deb
+    rm -f ../"${package_name}"_*.dsc
+    rm -f ../"${package_name}"_*.tar.*
+    rm -f ../"${package_name}"_*.changes
+    rm -f ../"${package_name}"_*.buildinfo
+
+    # Project-specific cleaning
+    local project_type=$(detect_project_type)
+    case "$project_type" in
+        python-uv|python)
+            rm -rf build/ *.egg-info/ .venv/ uv.lock __pycache__/
+            find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+            find . -type f -name "*.pyc" -delete 2>/dev/null || true
+            ;;
+        nodejs)
+            # Keep node_modules for faster rebuilds unless deep clean requested
+            [ "$1" = "deep" ] && rm -rf node_modules/
+            ;;
+        dkms)
+            make clean 2>/dev/null || true
+            ;;
+    esac
+
+    log_success "Clean completed"
 }
 
-# Prepare source directory
-prepare_source() {
-	print_info "Preparing source directory..."
+# Prepare Python project with uv
+prepare_python_uv() {
+    log_info "Preparing Python project with uv..."
 
-	# Create build directory
-	mkdir -p "${BUILD_DIR}"
+    # Check for uv.lock - we don't include it in packages
+    if [ -f "uv.lock" ]; then
+        log_warning "Found uv.lock - this file will not be included in the package"
+        log_info "uv.lock will be generated on the target system during installation"
+    fi
 
-	# Copy source files to build directory
-	local source_dir="${BUILD_DIR}/${PACKAGE_NAME}-${PACKAGE_VERSION}"
-	mkdir -p "${source_dir}"
+    # Check for required files
+    if [ ! -f "pyproject.toml" ]; then
+        log_error "Missing pyproject.toml file"
+        return 1
+    fi
 
-	# Copy source files
-	cp -r "${SCRIPT_DIR}"/*.c "${source_dir}/"
-	cp -r "${SCRIPT_DIR}"/*.h "${source_dir}/"
-	cp -r "${SCRIPT_DIR}"/Makefile "${source_dir}/"
-	cp -r "${SCRIPT_DIR}"/dkms.conf "${source_dir}/"
-	cp -r "${SCRIPT_DIR}"/*.dts "${source_dir}/"
-	cp -r "${SCRIPT_DIR}"/README.md "${source_dir}/"
-	cp -r "${SCRIPT_DIR}"/platform-detect.sh "${source_dir}/"
-
-	# Copy debian packaging files
-	cp -r "${SCRIPT_DIR}"/debian "${source_dir}/"
-
-	# Fix changelog date
-	sed -i "s/\$(date -R)/$(date -R)/" "${source_dir}/debian/changelog"
-
-	print_success "Source directory prepared at ${source_dir}"
+    return 0
 }
 
-# Build the package
+# Prepare Node.js project
+prepare_nodejs() {
+    log_info "Preparing Node.js project..."
+
+    # Check for package.json
+    if [ ! -f "package.json" ]; then
+        log_error "Missing package.json file"
+        return 1
+    fi
+
+    # Install production dependencies
+    if [ -d "node_modules" ]; then
+        log_info "Using existing node_modules directory"
+    else
+        log_info "Installing production dependencies..."
+        npm ci --omit=dev --omit=optional || npm install --production
+    fi
+
+    return 0
+}
+
+# Prepare DKMS project
+prepare_dkms() {
+    log_info "Preparing DKMS project..."
+
+    # Check for dkms.conf
+    if [ ! -f "dkms.conf" ]; then
+        log_error "Missing dkms.conf file"
+        return 1
+    fi
+
+    # Compile device tree overlays if present
+    for dts in *.dts; do
+        if [ -f "$dts" ]; then
+            local dtbo="${dts%.dts}.dtbo"
+            log_info "Compiling device tree overlay: $dts"
+            dtc -@ -I dts -O dtb -o "$dtbo" "$dts" || log_warning "Failed to compile $dts"
+        fi
+    done
+
+    return 0
+}
+
+# Build Debian package
 build_package() {
-	print_info "Building Debian package..."
+    local package_name=$(get_package_name)
+    local project_type=$(detect_project_type)
 
-	local source_dir="${BUILD_DIR}/${PACKAGE_NAME}-${PACKAGE_VERSION}"
+    if [ -z "$package_name" ]; then
+        log_error "Could not determine package name from debian/control"
+        return 1
+    fi
 
-	# Change to source directory
-	cd "${source_dir}"
+    log_info "Building package: $package_name"
+    log_info "Project type: $project_type"
+    log_info "Target architecture: $TARGET_ARCHITECTURE"
 
-	# Build the package
-	print_info "Running dpkg-buildpackage..."
-	if CC="aarch64-linux-gnu-gcc" dpkg-buildpackage -us -uc -b -aarm64; then
-		print_success "Package built successfully"
-	else
-		print_error "Package build failed"
-		exit 1
-	fi
+    # Prepare project based on type
+    case "$project_type" in
+        python-uv)
+            prepare_python_uv || return 1
+            ;;
+        nodejs)
+            prepare_nodejs || return 1
+            ;;
+        dkms)
+            prepare_dkms || return 1
+            ;;
+    esac
 
-	# Return to original directory
-	cd "${SCRIPT_DIR}"
+    # Update changelog if needed
+    if [ -f "${DEBIAN_DIR}/changelog" ]; then
+        log_info "Changelog exists, skipping update"
+    else
+        log_info "Creating initial changelog..."
+        dch --create --package "$package_name" --newversion "1.0.0" --distribution stable "Initial release"
+    fi
+
+    # Build the package
+    log_info "Building Debian package..."
+
+    # Enable parallel builds
+    export DEB_BUILD_OPTIONS="${DEB_BUILD_OPTIONS:-} parallel=$(nproc)"
+
+    # Check if we're cross-compiling
+    local current_arch=$(dpkg --print-architecture)
+    local build_flags="-us -uc -b"
+
+    # Always use -d flag to ignore Build-Depends checks
+    # (needed for manual tool installs and cross-compilation)
+    build_flags="$build_flags -d"
+
+    if [ "$current_arch" != "$TARGET_ARCHITECTURE" ]; then
+        log_warning "Cross-compiling from $current_arch to $TARGET_ARCHITECTURE"
+        log_info "Note: For production packages, building on target architecture is recommended"
+
+        # Add architecture flag for cross-compilation
+        build_flags="$build_flags -a$TARGET_ARCHITECTURE"
+    fi
+
+    # Use dpkg-buildpackage with appropriate flags
+    # -us -uc: Don't sign the package
+    # -b: Binary-only build
+    # -d: Override dependency checks (for cross-compilation and manual tool installs)
+    # -a: Specify target architecture (for cross-compilation)
+    if dpkg-buildpackage $build_flags; then
+        log_success "Package built successfully"
+    else
+        log_error "Package build failed"
+        return 1
+    fi
+
+    # Create distribution directory and move packages
+    mkdir -p "${DIST_DIR}"
+
+    # Move built packages to dist directory
+    if ls ../"${package_name}"_*.deb 2>/dev/null; then
+        mv ../"${package_name}"_*.deb "${DIST_DIR}/"
+        log_success "Package moved to ${DIST_DIR}/"
+
+        # Display package information
+        for deb in "${DIST_DIR}"/*.deb; do
+            if [ -f "$deb" ]; then
+                log_info "Package: $(basename "$deb")"
+                log_info "Size: $(du -h "$deb" | cut -f1)"
+                log_info "Architecture: $(dpkg --field "$deb" Architecture)"
+            fi
+        done
+    else
+        log_error "No .deb package found after build"
+        return 1
+    fi
+
+    # Clean up other build artifacts
+    rm -f ../"${package_name}"_*.dsc
+    rm -f ../"${package_name}"_*.tar.*
+    rm -f ../"${package_name}"_*.changes
+    rm -f ../"${package_name}"_*.buildinfo
+
+    return 0
 }
 
-# Display results
-show_results() {
-	print_info "Build completed successfully!"
-	print_info "Generated files:"
+# Display usage information
+show_usage() {
+    cat <<EOF
+Usage: $0 [OPTIONS]
 
-	# List generated files
-	for file in "${BUILD_DIR}"/*.deb "${BUILD_DIR}"/*.changes "${BUILD_DIR}"/*.buildinfo; do
-		if [ -f "$file" ]; then
-			local filename=$(basename "$file")
-			local size=$(du -h "$file" | cut -f1)
-			print_success "  ${filename} (${size})"
-		fi
-	done
+Universal Debian package builder for Pamir AI projects.
 
-	print_info ""
-	print_info "To install the package:"
-	print_info "  sudo dpkg -i ${BUILD_DIR}/${PACKAGE_NAME}_${PACKAGE_VERSION}_all.deb"
-	print_info ""
-	print_info "To install dependencies if needed:"
-	print_info "  sudo apt-get install -f"
-	print_info ""
-	print_info "To test the package:"
-	print_info "  sudo dpkg -i ${BUILD_DIR}/${PACKAGE_NAME}_${PACKAGE_VERSION}_all.deb"
-	print_info "  dkms status"
-	print_info "  ls -la /boot/firmware/overlays/pamir-ai-sam.dtbo"
+OPTIONS:
+    clean       Clean build artifacts and exit
+    check       Check build dependencies and exit
+    help        Show this help message
+    native      Build for current architecture instead of arm64
+
+Without options, builds the Debian package for arm64.
+
+ENVIRONMENT VARIABLES:
+    TARGET_ARCH  Override target architecture (default: arm64)
+                 Example: TARGET_ARCH=amd64 ./build-deb.sh
+
+SUPPORTED PROJECT TYPES:
+    - Python projects with uv
+    - Node.js projects
+    - DKMS kernel modules
+    - Systemd services
+
+The script automatically detects the project type and builds accordingly.
+Default target architecture: arm64 (use 'native' option to build for current arch)
+EOF
 }
 
-# Main execution
+# Main script execution
 main() {
-	print_info "Starting Debian package build for ${PACKAGE_NAME} ${PACKAGE_VERSION}"
-	print_info "Script directory: ${SCRIPT_DIR}"
+    # Parse command line arguments
+    case "${1:-}" in
+        clean)
+            clean_build
+            exit 0
+            ;;
+        check)
+            if check_build_dependencies; then
+                log_success "All build dependencies are installed"
+                exit 0
+            else
+                exit 1
+            fi
+            ;;
+        native)
+            # Build for current architecture
+            TARGET_ARCHITECTURE=$(dpkg --print-architecture)
+            log_info "Building for native architecture: $TARGET_ARCHITECTURE"
+            ;;
+        help|--help|-h)
+            show_usage
+            exit 0
+            ;;
+        "")
+            # Continue with build
+            ;;
+        *)
+            log_error "Unknown option: $1"
+            show_usage
+            exit 1
+            ;;
+    esac
 
-	# Check system and dependencies
-	check_system
-	check_dependencies
+    # Check if we're in a valid project directory
+    if [ ! -d "$DEBIAN_DIR" ]; then
+        log_error "No debian/ directory found. This script must be run from a project root."
+        exit 1
+    fi
 
-	# Build process
-	clean_build
-	prepare_source
-	build_package
-	show_results
+    # Check build dependencies
+    if ! check_build_dependencies; then
+        exit 1
+    fi
 
-	print_success "Debian package build completed successfully!"
+    # Detect project type
+    local project_type=$(detect_project_type)
+    if [ "$project_type" = "unknown" ]; then
+        log_warning "Could not detect project type, proceeding with generic build"
+    fi
+
+    # Build the package
+    if build_package; then
+        log_success "Build completed successfully!"
+        log_info "Package(s) available in ${DIST_DIR}/"
+        exit 0
+    else
+        log_error "Build failed!"
+        exit 1
+    fi
 }
 
-# Handle script arguments
-case "${1:-}" in
-clean)
-	clean_build
-	print_success "Clean completed"
-	;;
-check)
-	check_system
-	check_dependencies
-	print_success "System check completed"
-	;;
-help | --help | -h)
-	echo "Usage: $0 [clean|check|help]"
-	echo ""
-	echo "Commands:"
-	echo "  clean    Clean build directory and generated files"
-	echo "  check    Check system and build dependencies"
-	echo "  help     Show this help message"
-	echo ""
-	echo "Default: Build the Debian package"
-	;;
-*)
-	main
-	;;
-esac
+# Run main function
+main "$@"
