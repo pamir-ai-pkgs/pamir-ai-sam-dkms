@@ -7,7 +7,10 @@ include /usr/share/dpkg/architecture.mk
 	dh $@
 
 override_dh_auto_build:
-	# ignore: no build step needed
+	@echo "DKMS package - skipping kernel module build (will build on target system)"
+
+override_dh_auto_test:
+	@echo "DKMS package - skipping tests"
 
 override_dh_auto_install:
-	# ignore: no install step needed
+	@echo "DKMS package - using dh_dkms for installation"
