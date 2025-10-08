@@ -108,29 +108,27 @@ jobs:
       - name: Build Debian package
         run: |
           echo "Starting build process..."
-          chmod +x build-deb.sh
-          
+
           # Find the actual kernel headers directory
           HEADERS_DIR=$(find /lib/modules -name "build" -type l 2>/dev/null | head -1)
           if [ -z "$HEADERS_DIR" ]; then
             HEADERS_DIR=$(find /usr/src -name "linux-headers-*" -type d | head -1)
           fi
-          
+
           echo "Available kernel directories:"
           ls -la /lib/modules/ || true
           ls -la /usr/src/ | grep linux-headers || true
           echo "Found kernel headers at: $HEADERS_DIR"
-          
+
           # Create symlink if headers directory exists but build symlink is missing
           if [ -n "$HEADERS_DIR" ] && [ ! -L "/lib/modules/$(uname -r)/build" ]; then
             sudo mkdir -p "/lib/modules/$(uname -r)"
             sudo ln -sf "$HEADERS_DIR" "/lib/modules/$(uname -r)/build"
             echo "Created symlink: /lib/modules/$(uname -r)/build -> $HEADERS_DIR"
           fi
-          
-          # Modify build-deb.sh to use native gcc instead of cross-compiler
-          sed -i 's/CC="aarch64-linux-gnu-gcc" //' build-deb.sh
-          ./build-deb.sh
+
+          # Build the Debian package
+          just build
           
           echo "Build completed. Checking artifacts:"
           ls -la dist/
