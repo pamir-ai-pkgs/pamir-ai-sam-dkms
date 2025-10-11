@@ -16,7 +16,6 @@ debian/files
 debian/*.debhelper*
 debian/*.substvars
 debian/pamir-ai-sam-dkms/
-debian/preinst
 
 # DKMS build artifacts
 *.o

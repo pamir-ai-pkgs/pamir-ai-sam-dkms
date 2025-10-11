@@ -1,0 +1,74 @@
+#!/bin/bash
+set -e
+
+# Platform detection - supports Pi CM5 (BCM2712) and Radxa Zero 3W (RK3566)
+detect_supported_platform() {
+	# Check device tree compatibility
+	if [ -f /proc/device-tree/compatible ]; then
+		local compat
+		compat=$(tr '\0' '\n' </proc/device-tree/compatible 2>/dev/null)
+
+		if echo "$compat" | grep -Eq "brcm,bcm2712|rockchip,rk35"; then
+			return 0
+		fi
+	fi
+
+	# Armbian kernel naming pattern detection
+	# Useful during Armbian build when device-tree may not be accessible
+	if uname -r 2>/dev/null | grep -qE '(vendor|current|edge|legacy)-(rk35xx|rockchip64)'; then
+		return 0
+	fi
+
+	# Check for kernel modules directory with Armbian naming
+	if ls /lib/modules/ 2>/dev/null | grep -qE '(vendor|current|edge|legacy)-(rk35xx|rockchip64)'; then
+		return 0
+	fi
+
+	return 1
+}
+
+case "$1" in
+install | upgrade)
+	# Skip validation in cross-compilation/build environments
+	if [ -n "${CROSS_COMPILE}" ] || [ ! -d "/lib/modules/$(uname -r 2>/dev/null)" ]; then
+		echo "Build/cross-compilation environment detected, skipping platform check"
+		exit 0
+	fi
+
+	# Validate platform BEFORE installation
+	if ! detect_supported_platform; then
+		cat >&2 <<EOF
+ERROR: Incompatible Hardware Platform
+
+pamir-ai-sam-dkms requires one of the following supported platforms:
+  - Raspberry Pi CM5 / Pi 5 (BCM2712)
+  - Radxa Zero 3W (Rockchip RK3566)
+  - Armbian on RK3566-based boards
+
+Your system does not meet these requirements.
+
+Detected: $(uname -m) platform without BCM2712 or RK3566 hardware
+
+This package provides UART-based communication with an RP2040 microcontroller
+for hardware control (buttons, LEDs, power management, display). It requires
+specific device tree configuration available only on supported platforms.
+
+For more information:
+  - Documentation: https://github.com/pamir-ai-pkgs/pamir-ai-sam-dkms
+  - Supported hardware: Pi CM5, Radxa Zero 3W
+EOF
+		exit 1
+	fi
+	;;
+
+abort-upgrade) ;;
+
+*)
+	echo "preinst called with unknown argument '$1'" >&2
+	exit 1
+	;;
+esac
+
+#DEBHELPER#
+
+exit 0
