@@ -1,9 +1,0 @@
-# We do not track this on GitHub
-pamir-ai-sam-dkms: initial-upload-closes-no-bugs
-
-# DKMS kernel module source package overrides
-pamir-ai-sam-dkms binary: unstripped-binary-or-object
-pamir-ai-sam-dkms binary: non-standard-file-perm
-pamir-ai-sam-dkms binary: hardening-no-pie
-pamir-ai-sam-dkms binary: hardening-no-bindnow
-pamir-ai-sam-dkms binary: source-is-missing
