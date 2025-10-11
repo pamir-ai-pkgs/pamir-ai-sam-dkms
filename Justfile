@@ -12,7 +12,7 @@ build:
     #!/usr/bin/env bash
     set -e
     export DEB_BUILD_OPTIONS="parallel=$(nproc)"
-    debuild -us -uc -b
+    debuild -us -uc -b --lintian-opts --profile=debian
     mkdir -p dist && mv ../*.deb dist/ 2>/dev/null || true
     rm -f ../*.{dsc,tar.*,changes,buildinfo,build}
 
