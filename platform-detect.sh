@@ -10,7 +10,7 @@
 validate_platform() {
 	local platform="$1"
 	case "$platform" in
-	rpi | rockchip | armbian | unknown)
+	rpi | rockchip | armbian | armsom-rk3576 | unknown)
 		return 0
 		;;
 	*)
@@ -60,6 +60,9 @@ detect_platform() {
 		if echo "$compat" | grep -q "brcm,bcm2712"; then
 			echo "rpi"
 			return
+		elif echo "$compat" | grep -q -e "armsom,cm5-io" -e "rockchip,rk3576"; then
+			echo "armsom-rk3576"
+			return
 		elif echo "$compat" | grep -q "rockchip,rk35"; then
 			echo "rockchip"
 			return
@@ -73,7 +76,7 @@ get_overlay_dir() {
 	local platform="${1:-$(detect_platform)}"
 
 	case "$platform" in
-	armbian | rockchip)
+	armbian | rockchip | armsom-rk3576)
 		echo "/boot/dtb/rockchip/overlay/"
 		;;
 	*)
@@ -86,7 +89,7 @@ get_config_file() {
 	local platform="${1:-$(detect_platform)}"
 
 	case "$platform" in
-	armbian | rockchip)
+	armbian | rockchip | armsom-rk3576)
 		echo "/boot/armbianEnv.txt"
 		;;
 	*)
@@ -102,6 +105,9 @@ get_overlay_name() {
 	armbian | rockchip)
 		echo "pamir-ai-sam-rk3566"
 		;;
+	armsom-rk3576)
+		echo "pamir-ai-sam-rk3576"
+		;;
 	*)
 		echo "pamir-ai-sam"
 		;;
@@ -114,6 +120,9 @@ get_dts_file() {
 	case "$platform" in
 	armbian | rockchip)
 		echo "pamir-ai-sam-rk3566-overlay.dts"
+		;;
+	armsom-rk3576)
+		echo "pamir-ai-sam-rk3576-overlay.dts"
 		;;
 	*)
 		echo "pamir-ai-sam-overlay.dts"

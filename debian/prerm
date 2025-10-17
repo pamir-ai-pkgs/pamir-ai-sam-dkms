@@ -34,7 +34,7 @@ remove | upgrade | deconfigure)
 
 	# Remove from config file
 	if [ -f "$CONFIG_FILE" ]; then
-		if [ "$PLATFORM" = "armbian" ] || [ "$PLATFORM" = "rockchip" ]; then
+		if [ "$PLATFORM" = "armbian" ] || [ "$PLATFORM" = "rockchip" ] || [ "$PLATFORM" = "armsom-rk3576" ]; then
 			# Armbian/Rockchip: overlays= space-separated syntax
 			if grep -q "^overlays=.*${OVERLAY_NAME}" "$CONFIG_FILE"; then
 				echo "Removing overlay from $CONFIG_FILE"

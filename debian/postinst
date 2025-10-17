@@ -42,7 +42,8 @@ configure)
 
 			if [ -f "$CONFIG_FILE" ]; then
 				# Handle platform-specific overlay configuration syntax
-				if [ "$PLATFORM" = "armbian" ] || [ "$PLATFORM" = "rockchip" ]; then
+				if [ "$PLATFORM" = "armbian" ] || [ "$PLATFORM" = "rockchip" ] || [ "$PLATFORM" = "armsom-rk3576" ]; then
+					# Armbian/Rockchip: overlays= space-separated syntax
 					if grep -q "^overlays=" "$CONFIG_FILE"; then
 						# Check if overlay already exists in the list
 						if ! grep "^overlays=" "$CONFIG_FILE" | grep -qE "(^overlays=|[[:space:]])${OVERLAY_NAME}([[:space:]]|$)"; then
