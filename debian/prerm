@@ -4,7 +4,7 @@ set -e
 
 # DKMS variables
 DKMS_NAME="pamir-ai-sam"
-DKMS_VERSION="2.0.0"
+DKMS_VERSION="3.0.0"
 DKMS_SOURCE_DIR="/usr/src/${DKMS_NAME}-${DKMS_VERSION}"
 source "${DKMS_SOURCE_DIR}/platform-detect.sh"
 

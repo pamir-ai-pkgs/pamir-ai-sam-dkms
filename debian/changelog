@@ -1,3 +1,24 @@
+pamir-ai-sam-dkms (3.0.0) unstable; urgency=medium
+
+  [ utsavbalar1231 ]
+  * feat: Add multiplatform support
+  * refactor(debian): modernize packaging for dh-sequence-dkms
+  * fix: adjust serdev callback signature for vendor kernel compatibility
+  * fix(debian): improve platform detection and overlay removal robustness
+  * fix(debian): update repository URLs to pamir-ai-pkgs org
+  * refactor(build): improve dependency checks and cross-compilation
+  * fix(debian): update repository URLs and packaging metadata
+  * refactor(debian): improve build override messages and add test skip
+  * refactor(build): replace build-deb.sh with Justfile
+  * build: add lintian debian profile to debuild
+  * fix(debian): add missing preinst script
+  * fix(debian): cleanup redundent lintian overrides
+  * feat(build): add architecture parameter to build recipe
+  * chore(debian): add git-buildpgckage configuratio
+  * feat(platform): add RK3576 based ArmSom CM5 IO support
+
+ -- PamirAI Incorporated <founders@pamir.ai>  Sat, 18 Oct 2025 00:11:23 +0530
+
 pamir-ai-sam-dkms (2.0.0) unstable; urgency=medium
 
   [ utsavbalar1231 ]
