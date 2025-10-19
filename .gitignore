@@ -20,8 +20,7 @@ debian/pamir-ai-sam-dkms/
 # DKMS build artifacts
 *.o
 *.o.d
-*.o.cmd
-*.mod.cmd
+*.cmd
 *.ko
 *.mod
 *.mod.c
