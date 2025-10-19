@@ -9,6 +9,18 @@
 #include "pamir-sam.h"
 #include <linux/leds.h>
 #include <linux/timer.h>
+#include <linux/version.h>
+
+/*
+ * Timer API compatibility
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 2, 0)
+	#define sam_timer_delete_sync(timer)    timer_delete_sync(timer)
+	#define sam_timer_shutdown_sync(timer)  timer_shutdown_sync(timer)
+#else
+	#define sam_timer_delete_sync(timer)    del_timer_sync(timer)
+	#define sam_timer_shutdown_sync(timer)  del_timer_sync(timer)
+#endif
 
 /* LED class devices for multiple LED support */
 #define MAX_LEDS 15  /* supports 15 individual LEDs (0-14) + broadcast (15) */
@@ -19,7 +31,10 @@ struct pamir_led_state {
 	uint8_t r, g, b;
 	uint8_t mode;
 	uint8_t brightness;
-	uint8_t timing;  /* Animation timing value (0-3: 100ms/200ms/500ms/1000ms) */
+	uint8_t timing;
+	struct timer_list animation_timer;
+	int animation_state;
+	uint8_t led_id;
 };
 
 static struct pamir_led_state led_states[MAX_LEDS];
@@ -137,8 +152,9 @@ static int rgb_trigger_activate(struct led_classdev *led_cdev)
 {
 	/* Find LED ID */
 	int led_id = -1;
+	int i;
 
-	for (int i = 0; i < MAX_LEDS; i++) {
+	for (i = 0; i < MAX_LEDS; i++) {
 		if (pamir_leds[i] == led_cdev) {
 			led_id = i;
 			break;
@@ -150,8 +166,14 @@ static int rgb_trigger_activate(struct led_classdev *led_cdev)
 		return -EINVAL;
 	}
 
-	/* Stop any existing timer */
-	del_timer_sync(&rgb_trigger_timer);
+	/* Stop any existing RGB trigger timer */
+	sam_timer_delete_sync(&rgb_trigger_timer);
+
+	/*
+	 * Stop animation timer for this LED
+	 * Note: triggers take precedence over modes
+	 */
+	sam_timer_delete_sync(&led_states[led_id].animation_timer);
 
 	/* Set active LED and reset state */
 	active_trigger_led = led_id;
@@ -168,12 +190,185 @@ static int rgb_trigger_activate(struct led_classdev *led_cdev)
  */
 static void rgb_trigger_deactivate(struct led_classdev *led_cdev)
 {
+	int led_id = -1;
+	int i;
+	unsigned long next_interval;
+
+	/* Find LED ID */
+	for (i = 0; i < MAX_LEDS; i++) {
+		if (pamir_leds[i] == led_cdev) {
+			led_id = i;
+			break;
+		}
+	}
+
 	/* Stop the trigger timer */
-	del_timer_sync(&rgb_trigger_timer);
+	sam_timer_delete_sync(&rgb_trigger_timer);
 
 	/* Clear active LED */
 	active_trigger_led = -1;
 	trigger_state = 0;
+
+	/* If LED has animation mode set, restart animation timer */
+	if (led_id >= 0 && led_id < MAX_LEDS && led_states[led_id].mode != LED_MODE_STATIC) {
+		/* Reset animation state */
+		led_states[led_id].animation_state = 0;
+
+		/* Calculate timer interval based on timing value */
+		switch (led_states[led_id].timing & 0x03) {
+		case 0:  /* LED_TIME_100MS */
+			next_interval = HZ / 10;
+			break;
+		case 1:  /* LED_TIME_200MS */
+			next_interval = HZ / 5;
+			break;
+		case 2:  /* LED_TIME_500MS */
+			next_interval = HZ / 2;
+			break;
+		case 3:  /* LED_TIME_1000MS */
+			next_interval = HZ;
+			break;
+		default:
+			next_interval = HZ / 2;
+			break;
+		}
+
+		/* Restart animation timer */
+		mod_timer(&led_states[led_id].animation_timer, jiffies + next_interval);
+	}
+}
+
+/**
+ * LED animation timer function for looping modes (blink, fade, rainbow)
+ * This provides continuous animation for user-specified RGB colors
+ */
+static void led_animation_timer_function(struct timer_list *t)
+{
+	struct pamir_led_state *led_state = container_of(t, struct pamir_led_state, animation_timer);
+	struct sam_protocol_data *priv;
+	uint8_t led_id = led_state->led_id;
+	uint8_t r, g, b;
+	uint8_t mode = led_state->mode;
+	unsigned long next_interval;
+	int ret;
+
+	/* Validate LED ID */
+	if (led_id >= MAX_LEDS) {
+		pr_err("pamir-sam: Invalid LED ID %u in animation timer\n", led_id);
+		return;
+	}
+
+	/* Safely access global pointer with reference counting */
+	mutex_lock(&g_sam_driver_mutex);
+	if (atomic_read(&g_sam_driver_refcount) == 0) {
+		mutex_unlock(&g_sam_driver_mutex);
+		return;
+	}
+	priv = g_sam_protocol_data;
+	atomic_inc(&g_sam_driver_refcount);
+	mutex_unlock(&g_sam_driver_mutex);
+
+	if (!priv || !priv->serdev) {
+		atomic_dec(&g_sam_driver_refcount);
+		return;
+	}
+
+	/* Calculate timing interval based on timing value */
+	switch (led_state->timing & 0x03) {
+	case 0:  /* LED_TIME_100MS */
+		next_interval = HZ / 10;  /* 100ms */
+		break;
+	case 1:  /* LED_TIME_200MS */
+		next_interval = HZ / 5;   /* 200ms */
+		break;
+	case 2:  /* LED_TIME_500MS */
+		next_interval = HZ / 2;   /* 500ms */
+		break;
+	case 3:  /* LED_TIME_1000MS */
+		next_interval = HZ;       /* 1000ms */
+		break;
+	default:
+		next_interval = HZ / 2;   /* Default 500ms */
+		break;
+	}
+
+	/* Calculate RGB based on animation mode and state */
+	switch (mode) {
+	case LED_MODE_BLINK:
+		/* Blink: alternate between stored RGB and off */
+		if (led_state->animation_state % 2 == 0) {
+			r = led_state->r;
+			g = led_state->g;
+			b = led_state->b;
+		} else {
+			r = 0;
+			g = 0;
+			b = 0;
+		}
+		led_state->animation_state++;
+		break;
+
+	case LED_MODE_FADE:
+		/* Fade: smooth in/out using stored RGB as max brightness */
+		{
+			int brightness = led_state->animation_state % 20;
+
+			if (brightness > 10)
+				brightness = 20 - brightness;
+
+			/* Scale stored RGB by fade brightness (0-10) */
+			r = (led_state->r * brightness) / 10;
+			g = (led_state->g * brightness) / 10;
+			b = (led_state->b * brightness) / 10;
+
+			led_state->animation_state++;
+		}
+		break;
+
+	case LED_MODE_RAINBOW:
+		/* Rainbow: cycle through hues */
+		{
+			int hue = (led_state->animation_state * 10) % 360;
+			/* Simple HSV to RGB conversion */
+			if (hue < 60) {
+				r = 255; g = (hue * 255) / 60; b = 0;
+			} else if (hue < 120) {
+				r = ((120 - hue) * 255) / 60; g = 255; b = 0;
+			} else if (hue < 180) {
+				r = 0; g = 255; b = ((hue - 120) * 255) / 60;
+			} else if (hue < 240) {
+				r = 0; g = ((240 - hue) * 255) / 60; b = 255;
+			} else if (hue < 300) {
+				r = ((hue - 240) * 255) / 60; g = 0; b = 255;
+			} else {
+				r = 255; g = 0; b = ((360 - hue) * 255) / 60;
+			}
+
+			led_state->animation_state++;
+		}
+		break;
+
+	default:
+		r = led_state->r;
+		g = led_state->g;
+		b = led_state->b;
+		atomic_dec(&g_sam_driver_refcount);
+		return;  /* Don't reschedule for static mode */
+	}
+
+	/* Send LED command with calculated RGB using STATIC mode
+	 * (firmware just displays the color, kernel does the animation)
+	 */
+	ret = send_led_command(priv, led_id,
+			      (r * 15) / 255, (g * 15) / 255, (b * 15) / 255,
+			      LED_MODE_STATIC, led_state->timing);
+	if (ret)
+		dev_warn(&priv->serdev->dev, "Animation LED %u update failed: %d\n", led_id, ret);
+
+	/* Reschedule timer for next animation frame */
+	mod_timer(&led_state->animation_timer, jiffies + next_interval);
+
+	atomic_dec(&g_sam_driver_refcount);
 }
 
 /**
@@ -190,7 +385,7 @@ void process_led_packet(struct sam_protocol_data *priv,
 
 	/* Input validation */
 	if (!priv || !packet) {
-		pr_warn("pamir-sam: Invalid parameters in process_led_packet\n");
+		pr_warn("pamir-sam: Invalid parameters in %s\n", __func__);
 		return;
 	}
 
@@ -547,6 +742,7 @@ static ssize_t led_mode_store(struct device *dev, struct device_attribute *attr,
 	uint8_t mode = LED_MODE_STATIC;
 	int ret;
 	char mode_str[16];
+	unsigned long next_interval;
 
 	/* Parse LED ID from device name */
 	if (sscanf(dev_name(dev), "pamir:led%hhu", &led_id) != 1)
@@ -570,20 +766,48 @@ static ssize_t led_mode_store(struct device *dev, struct device_attribute *attr,
 	else
 		return -EINVAL;
 
-	/* Store new mode */
+	sam_timer_delete_sync(&led_states[led_id].animation_timer);
+
 	led_states[led_id].mode = mode;
 
-	/* Send LED command with current RGB values and mode */
-	if (priv && priv->serdev) {
-		uint8_t r = (led_states[led_id].r * 15) / 255;
-		uint8_t g = (led_states[led_id].g * 15) / 255;
-		uint8_t b = (led_states[led_id].b * 15) / 255;
-		uint8_t time_value = led_states[led_id].timing;
+	if (mode == LED_MODE_STATIC) {
+		if (priv && priv->serdev) {
+			uint8_t r = (led_states[led_id].r * 15) / 255;
+			uint8_t g = (led_states[led_id].g * 15) / 255;
+			uint8_t b = (led_states[led_id].b * 15) / 255;
+			uint8_t time_value = led_states[led_id].timing;
 
-		ret = send_led_command(priv, led_id, r, g, b, mode, time_value);
-		if (ret)
-			return ret;
+			/* For static mode: send command once and don't start timer */
+			ret = send_led_command(priv, led_id, r, g, b, LED_MODE_STATIC, time_value);
+			if (ret)
+				return ret;
+		}
+		return count;
 	}
+
+	/* Reset animation state */
+	led_states[led_id].animation_state = 0;
+
+	/* Calculate initial timer interval based on timing value */
+	switch (led_states[led_id].timing & 0x03) {
+	case 0:  /* LED_TIME_100MS */
+		next_interval = HZ / 10;
+		break;
+	case 1:  /* LED_TIME_200MS */
+		next_interval = HZ / 5;
+		break;
+	case 2:  /* LED_TIME_500MS */
+		next_interval = HZ / 2;
+		break;
+	case 3:  /* LED_TIME_1000MS */
+		next_interval = HZ;
+		break;
+	default:
+		next_interval = HZ / 2;
+		break;
+	}
+
+	mod_timer(&led_states[led_id].animation_timer, jiffies + next_interval);
 
 	return count;
 }
@@ -629,6 +853,7 @@ static ssize_t led_timing_store(struct device *dev, struct device_attribute *att
 	uint8_t led_id = 0;
 	unsigned long value;
 	uint8_t time_value;
+	unsigned long next_interval;
 	int ret;
 
 	/* Parse LED ID from device name */
@@ -655,14 +880,37 @@ static ssize_t led_timing_store(struct device *dev, struct device_attribute *att
 	/* Store new timing value */
 	led_states[led_id].timing = time_value;
 
-	/* Send LED command with current RGB values, mode, and new timing */
-	if (priv && priv->serdev) {
+	/* If animation timer is active (mode is not static), restart it with new timing */
+	if (led_states[led_id].mode != LED_MODE_STATIC && timer_pending(&led_states[led_id].animation_timer)) {
+		/* Calculate new timer interval */
+		switch (time_value & 0x03) {
+		case 0:  /* LED_TIME_100MS */
+			next_interval = HZ / 10;
+			break;
+		case 1:  /* LED_TIME_200MS */
+			next_interval = HZ / 5;
+			break;
+		case 2:  /* LED_TIME_500MS */
+			next_interval = HZ / 2;
+			break;
+		case 3:  /* LED_TIME_1000MS */
+			next_interval = HZ;
+			break;
+		default:
+			next_interval = HZ / 2;
+			break;
+		}
+
+		/* Restart timer with new interval */
+		mod_timer(&led_states[led_id].animation_timer, jiffies + next_interval);
+	}
+	else if (led_states[led_id].mode == LED_MODE_STATIC && priv && priv->serdev) {
 		uint8_t r = (led_states[led_id].r * 15) / 255;
 		uint8_t g = (led_states[led_id].g * 15) / 255;
 		uint8_t b = (led_states[led_id].b * 15) / 255;
-		uint8_t mode = led_states[led_id].mode;
 
-		ret = send_led_command(priv, led_id, r, g, b, mode, time_value);
+		/* For static mode, send command once */
+		ret = send_led_command(priv, led_id, r, g, b, LED_MODE_STATIC, time_value);
 		if (ret)
 			return ret;
 	}
@@ -740,6 +988,10 @@ int register_led_devices(struct sam_protocol_data *priv)
 		led_states[i].mode = LED_MODE_STATIC;
 		led_states[i].brightness = 0;
 		led_states[i].timing = LED_TIME_500MS; /* Default 500ms timing */
+		led_states[i].animation_state = 0;
+		led_states[i].led_id = i;
+
+		timer_setup(&led_states[i].animation_timer, led_animation_timer_function, 0);
 	}
 
 	/* Initialize trigger timer */
@@ -769,11 +1021,12 @@ void unregister_led_devices(void)
 {
 	int i;
 
-	/* Clean up triggers */
 	unregister_rgb_led_triggers();
 
-	/* Stop trigger timer */
-	del_timer_sync(&rgb_trigger_timer);
+	sam_timer_shutdown_sync(&rgb_trigger_timer);
+
+	for (i = 0; i < MAX_LEDS; i++)
+		sam_timer_shutdown_sync(&led_states[i].animation_timer);
 
 	for (i = 0; i < MAX_LEDS; i++) {
 		if (pamir_leds[i]) {
