@@ -1,3 +1,12 @@
+pamir-ai-sam-dkms (3.1.0) unstable; urgency=medium
+
+  [ utsavbalar1231 ]
+  * fix(.gitignore): ignore tracking of .cmd files properly
+  * build(Justfile): skip dependency checking during package build
+  * fix(led): implement continuous looping for animation modes
+
+ -- PamirAI Incorporated <founders@pamir.ai>  Mon, 20 Oct 2025 01:46:48 +0530
+
 pamir-ai-sam-dkms (3.0.0) unstable; urgency=medium
 
   [ utsavbalar1231 ]
