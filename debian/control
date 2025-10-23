@@ -16,7 +16,11 @@ Package: pamir-ai-sam-dkms
 Architecture: all
 Depends: ${misc:Depends},
          device-tree-compiler
-Recommends: linux-headers-vendor-rk35xx | linux-headers-current-rk35xx | linux-headers-edge-rk35xx | raspberrypi-kernel-headers
+Recommends: linux-headers-vendor-rk35xx |
+			linux-headers-current-rk35xx | 
+			linux-headers-edge-rk35xx | 
+			raspberrypi-kernel-headers |
+			linux-headers-rpi-2712
 Description: PamirAI Signal Aggregation Module DKMS driver
  This package provides DKMS (Dynamic Kernel Module Support) driver
  for the PamirAI Signal Aggregation Module (SAM). The driver implements
