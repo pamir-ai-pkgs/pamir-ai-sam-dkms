@@ -1,3 +1,10 @@
+pamir-ai-sam-dkms (3.1.1) unstable; urgency=medium
+
+  [ utsavbalar1231 ]
+  * chore(debian): add linux-headers-rpi-2712 to dependency
+
+ -- PamirAI Incorporated <founders@pamir.ai>  Fri, 24 Oct 2025 02:11:24 +0530
+
 pamir-ai-sam-dkms (3.1.0) unstable; urgency=medium
 
   [ utsavbalar1231 ]
