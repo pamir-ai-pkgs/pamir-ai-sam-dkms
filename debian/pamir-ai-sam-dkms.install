@@ -1,9 +1,9 @@
 #!/usr/bin/dh-exec
 
-*.c usr/src/pamir-ai-sam-3.1.1/
-*.h usr/src/pamir-ai-sam-3.1.1/
-Makefile usr/src/pamir-ai-sam-3.1.1/
-dkms.conf usr/src/pamir-ai-sam-3.1.1/
-*.dts usr/src/pamir-ai-sam-3.1.1/
-platform-detect.sh usr/src/pamir-ai-sam-3.1.1/
+*.c usr/src/pamir-ai-sam-3.1.2/
+*.h usr/src/pamir-ai-sam-3.1.2/
+Makefile usr/src/pamir-ai-sam-3.1.2/
+dkms.conf usr/src/pamir-ai-sam-3.1.2/
+*.dts usr/src/pamir-ai-sam-3.1.2/
+platform-detect.sh usr/src/pamir-ai-sam-3.1.2/
 README.md usr/share/doc/pamir-ai-sam-dkms/

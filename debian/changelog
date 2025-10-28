@@ -1,3 +1,10 @@
+pamir-ai-sam-dkms (3.1.2) unstable; urgency=medium
+
+  [ utsavbalar1231 ]
+  * feat(led): add configurable LED count via device tree
+
+ -- PamirAI Incorporated <founders@pamir.ai>  Wed, 29 Oct 2025 05:23:22 +0530
+
 pamir-ai-sam-dkms (3.1.1) unstable; urgency=medium
 
   [ utsavbalar1231 ]
