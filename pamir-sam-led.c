@@ -903,8 +903,7 @@ static ssize_t led_timing_store(struct device *dev, struct device_attribute *att
 
 		/* Restart timer with new interval */
 		mod_timer(&led_states[led_id].animation_timer, jiffies + next_interval);
-	}
-	else if (led_states[led_id].mode == LED_MODE_STATIC && priv && priv->serdev) {
+	} else if (led_states[led_id].mode == LED_MODE_STATIC && priv && priv->serdev) {
 		uint8_t r = (led_states[led_id].r * 15) / 255;
 		uint8_t g = (led_states[led_id].g * 15) / 255;
 		uint8_t b = (led_states[led_id].b * 15) / 255;
@@ -941,13 +940,35 @@ static const struct attribute_group led_rgb_group = {
  * register_led_devices() - Register LED class devices
  * @priv: Private driver data
  *
- * Register multiple LED devices with RGB support.
+ * Register LED devices based on num-leds device tree property.
+ * Only the configured number of LEDs will be exposed to userspace.
  */
 int register_led_devices(struct sam_protocol_data *priv)
 {
 	int i, ret;
+	int num_leds = priv->config.num_leds;  /* Get configured LED count */
 
+	/* Initialize all LED states and timers (for full MAX_LEDS array) */
 	for (i = 0; i < MAX_LEDS; i++) {
+		led_states[i].r = 0;
+		led_states[i].g = 0;
+		led_states[i].b = 0;
+		led_states[i].mode = LED_MODE_STATIC;
+		led_states[i].brightness = 0;
+		led_states[i].timing = LED_TIME_500MS;
+		led_states[i].animation_state = 0;
+		led_states[i].led_id = i;
+		timer_setup(&led_states[i].animation_timer, led_animation_timer_function, 0);
+	}
+
+	/* Initialize trigger timer */
+	timer_setup(&rgb_trigger_timer, rgb_trigger_timer_function, 0);
+
+	/* Register custom RGB LED triggers */
+	register_rgb_led_triggers();
+
+	/* Register only the configured number of LED devices */
+	for (i = 0; i < num_leds; i++) {
 		pamir_leds[i] = devm_kzalloc(&priv->serdev->dev, sizeof(struct led_classdev), GFP_KERNEL);
 		if (!pamir_leds[i]) {
 			ret = -ENOMEM;
@@ -980,30 +1001,14 @@ int register_led_devices(struct sam_protocol_data *priv)
 			dev_err(&priv->serdev->dev, "Failed to create RGB sysfs for LED %d: %d\n", i, ret);
 			/* Continue without RGB attributes */
 		}
-
-		/* Initialize LED state */
-		led_states[i].r = 0;
-		led_states[i].g = 0;
-		led_states[i].b = 0;
-		led_states[i].mode = LED_MODE_STATIC;
-		led_states[i].brightness = 0;
-		led_states[i].timing = LED_TIME_500MS; /* Default 500ms timing */
-		led_states[i].animation_state = 0;
-		led_states[i].led_id = i;
-
-		timer_setup(&led_states[i].animation_timer, led_animation_timer_function, 0);
 	}
 
-	/* Initialize trigger timer */
-	timer_setup(&rgb_trigger_timer, rgb_trigger_timer_function, 0);
-
-	/* Register custom RGB LED triggers */
-	register_rgb_led_triggers();
+	dev_info(&priv->serdev->dev, "Registered %d LED devices (configured via device tree)\n", num_leds);
 
 	return 0;
 
 err_cleanup:
-	for (i = 0; i < MAX_LEDS; i++) {
+	for (i = 0; i < num_leds; i++) {
 		if (pamir_leds[i]) {
 			sysfs_remove_group(&pamir_leds[i]->dev->kobj, &led_rgb_group);
 			pamir_leds[i] = NULL;

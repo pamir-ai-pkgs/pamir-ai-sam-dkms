@@ -117,6 +117,7 @@ static void sam_protocol_load_config(struct device_node *node,
 	config->ack_required = false;
 	config->recovery_timeout_ms = 1000;
 	config->power_poll_interval_ms = 1000;  /* Default 1 second polling */
+	config->num_leds = 15;  /* Default LEDs if not specified */
 
 	/* Override with device tree settings if present */
 	of_property_read_u32(node, "debug-level", &config->debug_level);
@@ -124,6 +125,7 @@ static void sam_protocol_load_config(struct device_node *node,
 			  &config->recovery_timeout_ms);
 	of_property_read_u32(node, "power-poll-interval-ms",
 			  &config->power_poll_interval_ms);
+	of_property_read_u32(node, "num-leds", &config->num_leds);
 
 	config->ack_required = of_property_read_bool(node, "ack-required");
 
@@ -144,6 +146,12 @@ static void sam_protocol_load_config(struct device_node *node,
 		pr_warn("pamir-sam: Power poll interval too small (%u ms), using 1000\n",
 			config->power_poll_interval_ms);
 		config->power_poll_interval_ms = 1000;
+	}
+
+	/* Validate LED count: must be between 1 and 15 */
+	if (config->num_leds < 1 || config->num_leds > 15) {
+		pr_warn("pamir-sam: Invalid num-leds %u, using 15\n", config->num_leds);
+		config->num_leds = 15;
 	}
 }
 

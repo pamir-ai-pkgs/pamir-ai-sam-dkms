@@ -28,6 +28,7 @@
 			pamir_ai_sam: pamir-ai-sam {
 				compatible = "pamir-ai,sam";
 				status = "okay";
+				num-leds = <7>;  /* Number of physical RGB LEDs on hardware */
 				debug-level = <0>;  /* no debug output */
 				recovery-timeout-ms = <1000>;
 				power-poll-interval-ms = <1000>; /* 0 means no polling */
@@ -50,6 +51,7 @@
 	};
 
 	__overrides__ {
+		num_leds = <&pamir_ai_sam>,"num-leds:0";
 		debug_level = <&pamir_ai_sam>,"debug-level:0";
 		recovery_timeout = <&pamir_ai_sam>,"recovery-timeout-ms:0";
 		power_poll_interval = <&pamir_ai_sam>,"power-poll-interval-ms:0";

@@ -211,6 +211,7 @@ struct sam_power_metrics {
  * @ack_required: Whether commands require acknowledgment
  * @recovery_timeout_ms: Timeout for protocol recovery
  * @power_poll_interval_ms: Interval for power metrics polling (0 = disabled)
+ * @num_leds: Number of physical RGB LEDs on hardware (1-15)
  *
  * This struct holds configurable parameters for the SAM protocol driver
  * that can be set through device tree properties.
@@ -220,6 +221,7 @@ struct sam_protocol_config {
 	bool ack_required;
 	unsigned int recovery_timeout_ms;
 	unsigned int power_poll_interval_ms;
+	unsigned int num_leds;
 };
 
 /**
