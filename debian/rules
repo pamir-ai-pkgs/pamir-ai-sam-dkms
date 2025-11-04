@@ -3,14 +3,19 @@
 include /usr/share/dpkg/pkg-info.mk
 include /usr/share/dpkg/architecture.mk
 
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
 %:
 	dh $@
 
 override_dh_auto_build:
-	@echo "DKMS package - skipping kernel module build (will build on target system)"
+	true
 
 override_dh_auto_test:
-	@echo "DKMS package - skipping tests"
+	true
+
+override_dh_auto_clean:
+	true
 
 override_dh_auto_install:
-	@echo "DKMS package - using dh_dkms for installation"
+	true
