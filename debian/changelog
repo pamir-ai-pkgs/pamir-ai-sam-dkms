@@ -1,3 +1,11 @@
+pamir-ai-sam-dkms (3.1.3) unstable; urgency=medium
+
+  [ utsavbalar1231 ]
+  * chore(build): standardize Justfile recipes
+  * chore(debian): simplify debian/rules overrides
+
+ -- PamirAI Incorporated <founders@pamir.ai>  Sun, 09 Nov 2025 02:14:41 +0530
+
 pamir-ai-sam-dkms (3.1.2) unstable; urgency=medium
 
   [ utsavbalar1231 ]
