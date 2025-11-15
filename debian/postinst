@@ -57,6 +57,10 @@ configure)
 					else
 						# No overlays= line exists, create one
 						echo "Creating overlays list with $OVERLAY_NAME in $CONFIG_FILE"
+						# Check if file doesn't end with newline, add one if needed
+						if [ -s "${CONFIG_FILE}" ] && [ "$(tail -c1 "${CONFIG_FILE}" | wc -l)" -eq 0 ]; then
+							echo "" >>"$CONFIG_FILE"
+						fi
 						echo "overlays=$OVERLAY_NAME" >>"$CONFIG_FILE"
 						echo "Please reboot for the overlay to take effect"
 					fi
@@ -64,6 +68,10 @@ configure)
 					# Raspberry Pi uses "dtoverlay=" with separate lines
 					if ! grep -q "^dtoverlay=${OVERLAY_NAME}" "$CONFIG_FILE"; then
 						echo "Adding overlay to $CONFIG_FILE"
+						# Check if file doesn't end with newline, add one if needed
+						if [ -s "${CONFIG_FILE}" ] && [ "$(tail -c1 "${CONFIG_FILE}" | wc -l)" -eq 0 ]; then
+							echo "" >>"$CONFIG_FILE"
+						fi
 						echo "dtoverlay=${OVERLAY_NAME}" >>"$CONFIG_FILE"
 						echo "Please reboot for the overlay to take effect"
 					else
