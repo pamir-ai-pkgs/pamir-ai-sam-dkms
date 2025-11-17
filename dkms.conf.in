@@ -1,5 +1,5 @@
 PACKAGE_NAME="pamir-ai-sam"
-PACKAGE_VERSION="3.1.3"
+PACKAGE_VERSION="@DEB_VERSION@"
 CLEAN="make clean"
 MAKE[0]="make -C $kernel_source_dir M=$dkms_tree/$PACKAGE_NAME/$PACKAGE_VERSION/build"
 

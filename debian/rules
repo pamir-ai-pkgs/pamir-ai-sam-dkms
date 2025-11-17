@@ -5,8 +5,15 @@ include /usr/share/dpkg/architecture.mk
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
+# Extract upstream version
+DEB_VERSION_UPSTREAM := $(shell echo $(DEB_VERSION) | sed 's/-[^-]*$$//')
+export DEB_VERSION_UPSTREAM
+
 %:
 	dh $@
+
+override_dh_auto_configure:
+	sed 's/@DEB_VERSION@/$(DEB_VERSION_UPSTREAM)/g' dkms.conf.in > dkms.conf
 
 override_dh_auto_build:
 	true
